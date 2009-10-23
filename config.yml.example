@@ -1,0 +1,30 @@
+# ETL Configuration
+#
+# rename this file to config.yml
+#
+
+###########################################################
+# Paths
+
+# Where temporary ETL files are stored (such as files downloaded from web)
+# etl_files_path: /var/lib/datacamp/etl
+
+# Path to dump datasets. This path should be accesible by application to provide
+# dump API
+# dataset_dump_path: /var/lib/datacamp/dumps
+
+# Path for log file
+# log_file: /var/lib/datacamp/etl.log
+
+###########################################################
+# Database Connection
+
+connection:
+  host: localhost
+  username: root
+  password: 
+  charset: utf8
+
+staging_schema: datacamp_staging
+dataset_schema: datacamp_data
+app_schema: datacamp_app

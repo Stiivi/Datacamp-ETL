@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# ETL cron job script
+#
+# Ubuntu/Debian: Put this script in /etc/cron.daily
+# Other unces: schedule appropriately in /etc/crontab
+
+#####################################################################
+# ETL Configuration
+
+# Path to your ETL installation
+ETL_PATH=/usr/lib/afp_etl
+
+# Configuration file (database connection and other paths)
+CONFIG=$ETL_PATH/config.yml
+
+# Ruby interpreter path
+RUBY=/usr/bin/ruby
+
+#####################################################################
+
+ETL_TOOL=run.rb
+$RUBY -I $ETL_PATH $ETL_PATH/$ETL_TOOL $CONFIG

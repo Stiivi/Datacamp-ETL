@@ -1,0 +1,20 @@
+CREATE TABLE  `sta_regis_main` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `doc_id` int(11) default NULL,
+  `ico` bigint(20) default NULL,
+  `name` varchar(255) default NULL,
+  `legal_form` int(11) default NULL,
+  `date_start` date default NULL,
+  `date_end` date default NULL,
+  `address` varchar(255) default NULL,
+  `region` varchar(255) default NULL,
+  `activity1` int(11) default NULL,
+  `activity2` int(11) default NULL,
+  `account_sector` int(11) default NULL,
+  `ownership` int(11) default NULL,
+  `size` int(11) default NULL,
+  `source_url` varchar(255) DEFAULT NULL,
+  `date_created` datetime DEFAULT NULL,
+  `etl_loaded_date` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=70 DEFAULT CHARSET=utf8

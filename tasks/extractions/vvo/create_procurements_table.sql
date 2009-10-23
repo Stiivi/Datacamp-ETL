@@ -1,0 +1,22 @@
+CREATE TABLE `sta_procurements` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `year` int(11) DEFAULT NULL,
+  `bulletin_id` int(11) DEFAULT NULL,
+  `procurement_id` varchar(255) DEFAULT NULL,
+  `customer_ico` bigint(20) DEFAULT NULL,
+  `supplier_ico` bigint(20) DEFAULT NULL,
+  `procurement_subject` text ,
+  `price` bigint(20) DEFAULT NULL,
+  `currency` varchar(255) DEFAULT NULL,
+  `is_vat_included` tinyint(1) DEFAULT NULL,
+  `customer_ico_evidence` text ,
+  `supplier_ico_evidence` text ,
+  `subject_evidence` text ,
+  `price_evidence` text,
+  `procurement_type_id` int(11) DEFAULT NULL,
+  `document_id` bigint(20) DEFAULT NULL,
+  `source_url` varchar(255) DEFAULT NULL,
+  `date_created` datetime DEFAULT NULL,
+  `etl_loaded_date` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8
