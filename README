@@ -13,3 +13,9 @@ INSTALLATION
 For installation instructions read:
 
     http://projects.democracyfarm.org/projects/datacamp-etl/wiki/Installation
+
+
+TESTING
+
+To run tests you have to prepare config.yml file. Use config.yml.example as
+a template.

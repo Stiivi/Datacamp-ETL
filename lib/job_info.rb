@@ -1,4 +1,4 @@
-# TaskInfo - description of a task: name, schedule, priority,...
+# JobInfo - description of a job: name, schedule, priority,...
 #
 # Copyright (C) 2009 Knowerce, s.r.o.
 # 
@@ -18,34 +18,34 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-class TaskInfo < ActiveRecord::Base
-	set_table_name "etl_tasks"
+class JobInfo < ActiveRecord::Base
+	set_table_name "etl_jobs"
 
-	def self.find_scheduled(task_type)
-		task_type = task_type.to_s
-		tasks = TaskInfo.find(:all, :conditions => ["is_enabled = 1 AND task_type = ?", task_type],
+	def self.find_scheduled(job_type)
+		job_type = job_type.to_s
+		jobs = JobInfo.find(:all, :conditions => ["is_enabled = 1 AND job_type = ?", job_type],
 														:order => "run_order")
     	today = Time.now.beginning_of_day
 
         weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 
-        tasks.select { | task |
-            if (task.force_run == 1) 
+        jobs.select { | job |
+            if (job.force_run == 1) 
                 true
-            elsif task.last_run_date.nil?
-                if task.schedule == "daily" \
-                        or task.schedule == "weekly" \
-                        or weekdays.include?(task.schedule) and today.wday == weekdays.index(task.schedule)
+            elsif job.last_run_date.nil?
+                if job.schedule == "daily" \
+                        or job.schedule == "weekly" \
+                        or weekdays.include?(job.schedule) and today.wday == weekdays.index(job.schedule)
                     true
                 else
                     false
                 end
             else
-                last_run_day = task.last_run_date.beginning_of_day
+                last_run_day = job.last_run_date.beginning_of_day
                
-                if (task.schedule == "daily" and last_run_day != today) \
-                        or (task.schedule == "weekly" and (last_run_day - today) >= 7) \
-                        or (weekdays.include?(task.schedule) and today.wday == weekdays.index(task.schedule) and last_run_day != today)
+                if (job.schedule == "daily" and last_run_day != today) \
+                        or (job.schedule == "weekly" and (last_run_day - today) >= 7) \
+                        or (weekdays.include?(job.schedule) and today.wday == weekdays.index(job.schedule) and last_run_day != today)
                     true
                 else
                     false
@@ -53,9 +53,9 @@ class TaskInfo < ActiveRecord::Base
             end
         }
 	end
-	def self.find_enabled(task_type)
-		task_type = task_type.to_s
-		tasks = TaskInfo.find(:all, :conditions => ["is_enabled = 1 AND task_type = ?", task_type],
+	def self.find_enabled(job_type)
+		job_type = job_type.to_s
+		jobs = JobInfo.find(:all, :conditions => ["is_enabled = 1 AND job_type = ?", job_type],
 														:order => "run_order")
 	end
 end

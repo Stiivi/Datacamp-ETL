@@ -1,3 +1,7 @@
+2009-11-11 Stefan Urbanek <stefan.urbanek@gmail.com>
+
+    * Changed from Task to Job to follow business naming convention
+
 2009-10-22 Stefan Urbanek <stefan.urbanek@gmail.com>
 
     * first public release

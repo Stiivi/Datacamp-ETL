@@ -1,4 +1,4 @@
-# TaskStatus - information about task runs
+# JobStatus - information about ETL job runs
 #
 # Copyright (C) 2009 Knowerce, s.r.o.
 # 
@@ -18,6 +18,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-class TaskStatus < ActiveRecord::Base
-	set_table_name "etl_task_status"
+class JobStatus < ActiveRecord::Base
+	set_table_name "etl_job_status"
 end

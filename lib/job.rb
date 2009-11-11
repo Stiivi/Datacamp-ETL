@@ -1,8 +1,8 @@
-# ETL Task
+# ETL Job
 #
-# Copyright (C) 2009 Knowerce, s.r.o.
+# Copyright:: (C) 2009 Knowerce, s.r.o.
 # 
-# Written by: Stefan Urbanek
+# Author:: Stefan Urbanek
 # Date: Oct 2009
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,10 +18,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require 'lib/task_status'
+require 'lib/job_status'
 require 'lib/staging_defaults'
 
-class Task
+class Job
 attr_reader :connection
 attr_reader :table_prefix, :schema,  :files_directory
 attr_reader :task_status
