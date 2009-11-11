@@ -1,6 +1,6 @@
 #! /usr/bin/ruby
 #
-require 'lib/task_manager'
+require 'lib/job_manager'
 
 if ARGV[0].nil?
 	config_file = "config.yml"
@@ -21,30 +21,30 @@ logger.formatter = Logger::Formatter.new
 #################################################################
 # Run scheduled extractions
 
-task_manager = TaskManager.new
-task_manager.logger = logger
+job_manager = JobManager.new
+job_manager.logger = logger
 
 begin
-    task_manager.establish_connection(configuration["connection"])
-    task_manager.staging_schema = configuration["staging_schema"]
-    task_manager.dataset_schema = configuration["dataset_schema"]
+    job_manager.establish_connection(configuration["connection"])
+    job_manager.staging_schema = configuration["staging_schema"]
+    job_manager.dataset_schema = configuration["dataset_schema"]
     
-    if configuration["tasks_path"]
-        task_manager.tasks_path = configuration["tasks_path"]
+    if configuration["job_search_path"]
+        job_manager.job_search_path = configuration["job_search_path"]
     else
-        task_manager.tasks_path = Pathname.new(__FILE__).dirname + "tasks"
+        job_manager.job_search_path = [Pathname.new(__FILE__).dirname + "jobs"]
     end
     
     if configuration["etl_files_path"]
-        task_manager.etl_files_path = configuration["etl_files_path"]
+        job_manager.etl_files_path = configuration["etl_files_path"]
     end
     
     
-    task_manager.configuration = configuration
+    job_manager.configuration = configuration
     
-    task_manager.run_scheduled_tasks_of_type("extraction")
-    task_manager.run_enabled_tasks_of_type("loading")
-    task_manager.run_enabled_tasks_of_type("dump")
+    job_manager.run_scheduled_jobs_of_type("extraction")
+    job_manager.run_enabled_jobs_of_type("loading")
+    job_manager.run_enabled_jobs_of_type("dump")
     logger.info "Finished"
 rescue => exception
     logger.error "EXCEPTION: #{exception.message}"

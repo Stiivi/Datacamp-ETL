@@ -24,8 +24,8 @@ require 'lib/staging_defaults'
 class Job
 attr_reader :connection
 attr_reader :table_prefix, :schema,  :files_directory
-attr_reader :task_status
-attr_writer :task_status
+attr_reader :job_status
+attr_writer :job_status
 attr_reader :defaults, :defaults_domain
 attr_writer :defaults, :defaults_domain
 attr_reader :last_run_date
@@ -50,37 +50,37 @@ def prepare
 end
 
 def status=(status)
-    @task_status.status = status
+    @job_status.status = status
 end
 
 def message=(message)
-    @task_status.message = message
+    @job_status.message = message
 end
 def phase=(phase)
-    @task_status.phase = phase
-    @task_status.save
+    @job_status.phase = phase
+    @job_status.save
 end
 
 def status
-    @task_status.status
+    @job_status.status
 end
 
 def message
-    @task_status.message
+    @job_status.message
 end
 
 def phase
-    @task_status.phase
+    @job_status.phase
 end
 
 def run
 end
 
 def finalize
-    @task_status.status = "ok" if @task_status.status == "running"
-    @task_status.end_date = Time.now
+    @job_status.status = "ok" if @job_status.status == "running"
+    @job_status.end_date = Time.now
 
-    @task_status.save
+    @job_status.save
 end
 
 def logger
