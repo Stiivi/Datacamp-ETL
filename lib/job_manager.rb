@@ -29,6 +29,8 @@ require 'lib/job_info'
 require 'lib/job_status'
 require 'logger'
 require 'lib/extraction'
+require 'lib/loading'
+require 'lib/download_manager'
 
 DEBUG = true
 
@@ -166,7 +168,11 @@ end
 def run_job_with_name(job_name, job_type)
     job = JobInfo.find(:first, :conditions => ["name = ? AND job_type = ?",
                                                     job_name, job_type])
-    run_job_with_info(job)
+    if job
+        run_job_with_info(job)
+    else
+        raise "No job info for job #{job_name} of type #{job_type}"
+    end
 end
 
 def run_jobs(job_infos)

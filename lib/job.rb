@@ -88,7 +88,7 @@ def logger
 end
 
 def files_directory
-    @manager.files_directory_for_task(self)
+    @manager.files_directory_for_job(self)
 end
 
 def staging_system_columns

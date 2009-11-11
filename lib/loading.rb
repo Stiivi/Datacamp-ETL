@@ -1,4 +1,4 @@
-# Loading task
+# Loading job
 #
 # Copyright (C) 2009 Knowerce, s.r.o.
 # 
@@ -18,10 +18,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require 'lib/task'
+require 'lib/job'
 require 'lib/batch'
 
-class Loading < Task
+class Loading < Job
 	attr_reader :output_tables, :temporary_tables, :enumeration_tables
 	attr_reader :data_source_url
 	attr_reader :data_source_name
