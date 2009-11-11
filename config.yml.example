@@ -7,14 +7,20 @@
 # Paths
 
 # Where temporary ETL files are stored (such as files downloaded from web)
-# etl_files_path: /var/lib/datacamp/etl
+# etl_files_path: /var/lib/datacamp-etl
 
 # Path to dump datasets. This path should be accesible by application to provide
 # dump API
-# dataset_dump_path: /var/lib/datacamp/dumps
+# dataset_dump_path: /var/lib/datacamp-etl/dumps
 
 # Path for log file
-# log_file: /var/lib/datacamp/etl.log
+# log_file: /var/lib/datacamp-etl/etl.log
+
+# Path to ETL jobs
+# All jobs are searched here. The direcotry should contain subdirectories
+# similar to OS X bundles in form: job_name.job_type. Example: foo.loading
+
+# job_search_path: /usr/lib/datacamp-etl/jobs
 
 ###########################################################
 # Database Connection

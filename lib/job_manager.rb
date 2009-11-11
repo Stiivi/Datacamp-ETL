@@ -163,6 +163,11 @@ def run_scheduled_jobs_of_type(job_type)
 	    job.force_run = 0
 	}
 end
+def run_job_with_name(job_name, job_type)
+    job = JobInfo.find(:first, :conditions => ["name = ? AND job_type = ?",
+                                                    job_name, job_type])
+    run_job_with_info(job)
+end
 
 def run_jobs(job_infos)
 	job_infos.each {|info|

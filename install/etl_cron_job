@@ -9,7 +9,7 @@
 # ETL Configuration
 
 # Path to your ETL installation
-ETL_PATH=/usr/lib/afp_etl
+ETL_PATH=/usr/lib/datacamp-etl
 
 # Configuration file (database connection and other paths)
 CONFIG=$ETL_PATH/config.yml
@@ -19,5 +19,5 @@ RUBY=/usr/bin/ruby
 
 #####################################################################
 
-ETL_TOOL=run.rb
-$RUBY -I $ETL_PATH $ETL_PATH/$ETL_TOOL $CONFIG
+ETL_TOOL=etl.rb
+$RUBY -I $ETL_PATH $ETL_PATH/$ETL_TOOL --config $CONFIG
