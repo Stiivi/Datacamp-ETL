@@ -27,7 +27,6 @@ require 'optparse'
 
 class ETLTool
 
-
 def initialize
     @options = {}
 
