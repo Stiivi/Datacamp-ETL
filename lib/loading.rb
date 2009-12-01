@@ -247,14 +247,18 @@ def create_table_diff(diff_table, schema1, table1, schema2, table2, key_field, f
 end
 
 def create_record_md5_table(target_table, table_schema, source_table, key_field, fields)
+
+    # FIXME: MySQL specific! use NVL
+    
+    fields = fields.collect {|field| "COALESCE(#{field}, '')"}
     joined_fields = fields.join(",")
     
     drop_staging_table(target_table)
 
     sql = "CREATE TABLE #{@manager.staging_schema}.#{target_table}
-                  AS SELECT #{key_field.to_s}, MD5(CONCAT(COALESCE(#{joined_fields}, ''))) md5_sum
+                  AS SELECT #{key_field.to_s}, MD5(CONCAT(#{joined_fields})) md5_sum
                      FROM #{table_schema}.#{source_table}"
-
+puts sql
     @connection << sql
     
     create_staging_table_index(target_table, key_field)
