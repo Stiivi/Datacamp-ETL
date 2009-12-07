@@ -234,7 +234,11 @@ def create_table_diff(diff_table, schema1, table1, schema2, table2, key_field, f
                     FROM #{@manager.staging_schema}.#{md5sum1} t1
                     LEFT JOIN #{@manager.staging_schema}.#{md5sum2} t2 ON t1.ico = t2.ico
                     WHERE t2.ico IS NULL"
-        @connection << news_sql                    
+
+        self.logger.info "diff: adding news"
+
+        execute_sql(news_sql)
+        create_staging_table_index(diff_table, key_field.to_s)
 
         diffs_sql = "INSERT INTO #{@manager.staging_schema}.#{diff_table} (#{key_field}, diff)
                     SELECT t1.#{key_field} #{key_field}, 'c' diff
@@ -242,7 +246,8 @@ def create_table_diff(diff_table, schema1, table1, schema2, table2, key_field, f
                     JOIN #{@manager.staging_schema}.#{md5sum2} t2 ON t1.ico = t2.ico
                     WHERE t2.md5_sum != t1.md5_sum"
 
-        @connection << diffs_sql
+        self.logger.info "diff: adding changes"
+        execute_sql(diffs_sql)
 
 end
 
@@ -258,14 +263,14 @@ def create_record_md5_table(target_table, table_schema, source_table, key_field,
     sql = "CREATE TABLE #{@manager.staging_schema}.#{target_table}
                   AS SELECT #{key_field.to_s}, MD5(CONCAT(#{joined_fields})) md5_sum
                      FROM #{table_schema}.#{source_table}"
-puts sql
-    @connection << sql
+
+    execute_sql(sql)
     
     create_staging_table_index(target_table, key_field)
 end
 
 def drop_staging_table(table)
-    @connection << "DROP TABLE IF EXISTS #{@manager.staging_schema}.#{table.to_s}"
+    execute_sql("DROP TABLE IF EXISTS #{@manager.staging_schema}.#{table.to_s}")
 end
 
 def create_staging_table_index(target_table, key_field)

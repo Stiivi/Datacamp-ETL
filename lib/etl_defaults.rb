@@ -18,16 +18,16 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require 'lib/staging_default_association'
+require 'lib/etl_default_association'
 
-class StagingDefaults
+class ETLDefaults
 
 def initialize(domain)
 	@domain = domain
 end
 
 def [](key)
-	default = StagingDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
+	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
 	if default.nil?
 		return nil
 	else
@@ -36,7 +36,7 @@ def [](key)
 end
 
 def value(key, default_value)
-	default = StagingDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
+	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
 	if default.nil?
 		self[key] = default_value.to_s
 		return self[key]
@@ -46,7 +46,7 @@ def value(key, default_value)
 end
 
 def bool_value(key)
-	default = StagingDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
+	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
 	if default.nil? or default.value.nil?
 		return false
 	else
@@ -61,9 +61,9 @@ end
 
 
 def []=(key, value)
-	default = StagingDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
+	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
 	if default.nil?
-		default = StagingDefaultAssociation.new
+		default = ETLDefaultAssociation.new
 		default.domain = @domain
 		default.default_key = key.to_s
 	end
@@ -72,9 +72,9 @@ def []=(key, value)
 end
 
 def delete(key)
-	default = StagingDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
+	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
 	if not default.nil?
-		StagingDefaultAssociation.delete(default.id)
+		ETLDefaultAssociation.delete(default.id)
 	end
 end
 

@@ -57,7 +57,7 @@ attr_accessor :job_search_path
 # manager is set to _etl_, default path for file storage is ./files and
 # jobs are searched in ./jobs
 def initialize
-	@defaults = StagingDefaults.new("etl")
+	@defaults = ETLDefaults.new("etl")
 	@etl_files_path = Pathname.new("files")
     @jobs_path = Pathname.new("jobs")
     @logger = Logger.new(STDERR)
@@ -138,33 +138,45 @@ def load_job_class(job_name, job_type)
 	return job_class
 end
 
-def run_enabled_jobs_of_type(job_type)
-	run_jobs(JobInfo.find_enabled(job_type))
-end
-
-def run_scheduled_jobs_of_type(job_type)
+def run_scheduled_jobs(options = nil)
 	force = @defaults.bool_value("force_run_all")
 
+    job_type = nil
+    if options
+        job_type = options[:job_type]
+    end
+
+    if job_type
+        @logger.info "Running all scheduled jobs of type #{job_type}"
+    else
+        @logger.info "Running all scheduled jobs"
+    end
+
 	if force
-        @logger.info "Forcing all scheduled #{job_type} jobs"
-		jobs = JobInfo.find_enabled(job_type)
+        @logger.info "Forcing to run all enabled jobs (ignoring schedule)"
+		jobs = JobInfo.find_enabled(:job_type => job_type)
 		# FIXME: reset this flag for @production
 		# @defaults["force_run_all"] = "false"
 	else
-		jobs = JobInfo.find_scheduled(job_type)
+		jobs = JobInfo.find_enabled(:job_type => job_type, :scheduled => true)
 	end
 
     if jobs.nil? or jobs.empty?
-        @logger.info "No #{job_type} jobs to run"
+        @logger.info "No jobs to run"
     end
 
 	run_jobs(jobs)
 	
-    # resed force run flag (make the job to be run according to schedule)
-	jobs.each { |job|
-	    job.force_run = 0
-	}
+    # reset force run flag (make the job to be run according to schedule)
+	reset = @defaults.bool_value("reset_force_run_flag")
+    if reset
+    	jobs.each { |job|
+	        job.force_run = 0
+	        job.save
+    	}
+    end
 end
+
 def run_job_with_name(job_name, job_type)
     job = JobInfo.find(:first, :conditions => ["name = ? AND job_type = ?",
                                                     job_name, job_type])
@@ -211,7 +223,7 @@ def run_job_with_info(job_info)
 	# Prepare defaults
 	job.defaults_domain = job_info.name if job.defaults_domain.nil?
 	
-	job.defaults = StagingDefaults.new(job.defaults_domain)
+	job.defaults = ETLDefaults.new(job.defaults_domain)
 	job.last_run_date = job_info.last_run_date
 
 	job.prepare

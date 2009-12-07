@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'lib/job_status'
-require 'lib/staging_defaults'
+require 'lib/etl_defaults'
 
 class Job
 attr_reader :connection

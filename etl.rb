@@ -93,9 +93,7 @@ end
    
 def run_scheduled_jobs
     begin
-        @job_manager.run_scheduled_jobs_of_type("extraction")
-        @job_manager.run_enabled_jobs_of_type("loading")
-        @job_manager.run_enabled_jobs_of_type("dump")
+        @job_manager.run_scheduled_jobs
     rescue => exception
         @logger.error "#{exception.message}"
         @logger.error exception.backtrace.join("\n")
@@ -116,13 +114,14 @@ def run_jobs(jobs)
 end
 
 def run
+    @logger.info "ETL start"
     create_job_manager
     if not @jobs.empty?
         run_jobs(@jobs)
     else
         run_scheduled_jobs
     end
-    @logger.info "finished"
+    @logger.info "ETL finished"
 end
 
 end
