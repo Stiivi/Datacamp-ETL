@@ -36,6 +36,9 @@ def initialize
         opts.on("-c", "--config CONFIG", "Specify configuration file.") do |config|
             @options[:config] = config
         end
+        opts.on("-d", "--debug", "Enable debugging") do
+            @debug = true
+        end
         opts.separator "\n"
         opts.separator "* [jobs] is optional list of jobs to be run in form: name.type. Example: data.extraction"
         opts.separator "* if no jobs are specified, then scheduled jobs are run"
@@ -56,21 +59,21 @@ def initialize
     @configuration = YAML.load_file(config_file)
     
     if @configuration["log_file"]
-        log_file = @configuration["log_file"]
+        @log_file = @configuration["log_file"]
     else
-        log_file = STDERR
+        @log_file = STDERR
     end
-    
-    @logger = Logger.new(log_file)
-    @logger.formatter = Logger::Formatter.new
 end
 
 def create_job_manager
     @job_manager = JobManager.new
-    @job_manager.logger = @logger
+    if @debug
+        @job_manager.debug = true
+    end
 
     begin
         @job_manager.establish_connection(@configuration["connection"])
+        @job_manager.log_file = @log_file
         @job_manager.staging_schema = @configuration["staging_schema"]
         @job_manager.dataset_schema = @configuration["dataset_schema"]
         
@@ -86,8 +89,8 @@ def create_job_manager
         
         @job_manager.configuration = @configuration
     rescue => exception
-        @logger.error "#{exception.message}"
-        @logger.error exception.backtrace.join("\n")
+        @job_manager.log.error "#{exception.message}"
+        @job_manager.log.error exception.backtrace.join("\n")
     end
 end
    
@@ -95,8 +98,8 @@ def run_scheduled_jobs
     begin
         @job_manager.run_scheduled_jobs
     rescue => exception
-        @logger.error "#{exception.message}"
-        @logger.error exception.backtrace.join("\n")
+        @job_manager.log.error "#{exception.message}"
+        @job_manager.log.error exception.backtrace.join("\n")
     end
 end
 
@@ -114,14 +117,14 @@ def run_jobs(jobs)
 end
 
 def run
-    @logger.info "ETL start"
     create_job_manager
+    @job_manager.log.info "ETL start"
     if not @jobs.empty?
         run_jobs(@jobs)
     else
         run_scheduled_jobs
     end
-    @logger.info "ETL finished"
+    @job_manager.log.info "ETL finished"
 end
 
 end

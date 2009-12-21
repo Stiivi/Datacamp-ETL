@@ -32,8 +32,6 @@ require 'lib/extraction'
 require 'lib/loading'
 require 'lib/download_manager'
 
-DEBUG = true
-
 # Main ETL class that manages all jobs. Use this object to:
 # * prepare and queue jobs
 # * run jobs
@@ -45,7 +43,8 @@ class JobManager
 attr_reader :connection
 attr_accessor :staging_schema, :dataset_schema
 attr_accessor :configuration
-attr_accessor :logger
+attr_accessor :log
+attr_accessor :debug
 attr_reader :files_path
 attr_reader :etl_files_path, :jobs_path
 attr_accessor :job_search_path
@@ -60,8 +59,7 @@ def initialize
 	@defaults = ETLDefaults.new("etl")
 	@etl_files_path = Pathname.new("files")
     @jobs_path = Pathname.new("jobs")
-    @logger = Logger.new(STDERR)
-    
+    log_file = STDERR
 	return self
 end
 
@@ -82,7 +80,34 @@ def establish_connection(connection_info)
 		raise "Unable to establish database connection"
 	end
 end
-    
+
+def log_file=(logfile)
+    @log = Logger.new(logfile)
+    @log.formatter = Logger::Formatter.new
+    @log.datetime_format = '%Y-%m-%d %H:%M:%S '
+    if @debug
+        @log.level = Logger::DEBUG
+    else
+        @log.level = Logger::INFO
+    end
+end
+
+def debug=(debug_flag)
+    # prevent some other values
+    if debug_flag
+        @debug = true
+    else
+        @debug = false
+    end
+    if @log
+        if @debug
+            @log.level = Logger::DEBUG
+        else
+            @log.level = Logger::INFO
+        end
+     end
+end
+
 def staging_schema=(schema)
 	@staging_schema = schema
 	ActiveRecord::Base.establish_connection(
@@ -107,7 +132,7 @@ def load_job_class(job_name, job_type)
     
     job_path = path_for_job(job_name, job_type)
     if not job_path
-      @logger.error "Unable to find job #{job_name}.#{job_type}"
+      @log.error "Unable to find job #{job_name}.#{job_type}"
       return nil
     end
 
@@ -116,7 +141,7 @@ def load_job_class(job_name, job_type)
     script_file = job_path + base_name
 
     if not script_file.exist?
-	    @logger.error "Unable to find #{job_type} class file #{script_file}"
+	    @log.error "Unable to find #{job_type} class file #{script_file}"
 	    return nil
     end
 
@@ -147,13 +172,13 @@ def run_scheduled_jobs(options = nil)
     end
 
     if job_type
-        @logger.info "Running all scheduled jobs of type #{job_type}"
+        @log.info "Running all scheduled jobs of type #{job_type}"
     else
-        @logger.info "Running all scheduled jobs"
+        @log.info "Running all scheduled jobs"
     end
 
 	if force
-        @logger.info "Forcing to run all enabled jobs (ignoring schedule)"
+        @log.info "Forcing to run all enabled jobs (ignoring schedule)"
 		jobs = JobInfo.find_enabled(:job_type => job_type)
 		# FIXME: reset this flag for @production
 		# @defaults["force_run_all"] = "false"
@@ -162,7 +187,7 @@ def run_scheduled_jobs(options = nil)
 	end
 
     if jobs.nil? or jobs.empty?
-        @logger.info "No jobs to run"
+        @log.info "No jobs to run"
     end
 
 	run_jobs(jobs)
@@ -189,7 +214,7 @@ end
 
 def run_jobs(job_infos)
 	job_infos.each {|info|
-		@logger.info "Running #{info.job_type} job #{info.name} (#{info.id})"
+		@log.info "Running #{info.job_type} job #{info.name} (#{info.id})"
 		run_job_with_info(info)
 	}
 end
@@ -204,8 +229,8 @@ def run_job_with_info(job_info)
         end
 		job = job_class.new(self)
     rescue => exception
-        @logger.error "Job #{job_info.name}(#{job_info.job_type}) failed: #{$!.message}"
-        @logger.error exception.backtrace.join("\n")
+        @log.error "Job #{job_info.name}(#{job_info.job_type}) failed: #{$!.message}"
+        @log.error exception.backtrace.join("\n")
 
 		fail_job(job_info, $!.message)
 		return
@@ -228,7 +253,7 @@ def run_job_with_info(job_info)
 
 	job.prepare
 
-    if not DEBUG
+    if not @debug
         begin
             job.run
             job.finalize
@@ -245,7 +270,7 @@ def run_job_with_info(job_info)
 	job_info.last_run_date = job.job_status.end_date
 	job_info.save
 	if job.status == "failed"
-		@logger.error "Job #{job_info.name}(#{job_info.job_type}) failed: #{job.message}"
+		@log.error "Job #{job_info.name}(#{job_info.job_type}) failed: #{job.message}"
 	end
 end
 
@@ -286,5 +311,9 @@ def files_directory_for_job(job)
     path.mkpath()
     
     return path
+end
+def logger
+    # FIXME: put depreciation warning here
+    return @log
 end
 end
