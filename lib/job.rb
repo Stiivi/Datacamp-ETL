@@ -24,21 +24,23 @@ require 'lib/etl_defaults'
 class Job
 attr_reader :connection
 attr_reader :table_prefix, :schema,  :files_directory
-attr_reader :job_status
-attr_writer :job_status
-attr_reader :defaults, :defaults_domain
-attr_writer :defaults, :defaults_domain
-attr_reader :last_run_date
-attr_writer :last_run_date
-attr_reader :info
-attr_writer :info
 attr_reader :name
+attr_reader :config
+attr_accessor :job_status
+attr_accessor :defaults
+attr_reader :defaults_domain
+attr_accessor :last_run_date
+attr_accessor :info
 
 def initialize(manager)
     @manager = manager
     @connection = @manager.connection
     @schema = @manager.staging_schema
     @table_prefix = "sta_"
+    @config = @manager.domains_config[@defaults_domain.to_s]
+    if not @config
+        @config = Hash.new
+    end
 end
 
 def name
@@ -48,7 +50,10 @@ end
 def prepare
     # do nothing
 end
-
+def defaults_domain=(domain)
+    @defaults_domain = domain
+    @config = @manager.domains_config[@defaults_domain.to_s]
+end
 def status=(status)
     @job_status.status = status
 end
@@ -73,6 +78,11 @@ def phase
     @job_status.phase
 end
 
+def fail(message)
+    @job_status.status = "failed"
+    @job_status.message = message
+end
+
 def run
 end
 
@@ -84,6 +94,11 @@ def finalize
 end
 
 def logger
+    # FIXME: depreciated
+    @manager.logger
+end
+
+def log
     @manager.logger
 end
 
@@ -100,4 +115,5 @@ def execute_sql(sql_statement)
     # FIXME: uncomment this /production
     @connection << sql_statement
 end
+
 end

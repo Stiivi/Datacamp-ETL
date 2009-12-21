@@ -72,8 +72,10 @@ def create_job_manager
     end
 
     begin
+        @job_manager.domains_config = @configuration["domains"]
         @job_manager.establish_connection(@configuration["connection"])
         @job_manager.log_file = @log_file
+
         @job_manager.staging_schema = @configuration["staging_schema"]
         @job_manager.dataset_schema = @configuration["dataset_schema"]
         

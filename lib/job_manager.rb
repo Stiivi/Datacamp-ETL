@@ -45,6 +45,7 @@ attr_accessor :staging_schema, :dataset_schema
 attr_accessor :configuration
 attr_accessor :log
 attr_accessor :debug
+attr_accessor :domains_config
 attr_reader :files_path
 attr_reader :etl_files_path, :jobs_path
 attr_accessor :job_search_path
@@ -222,6 +223,10 @@ end
 def run_job_with_info(job_info)
 	error = false
 
+    @log.info "running job #{job_info.name}.#{job_info.job_type}"
+
+    job_start_time = Time.now
+
 	begin
 		job_class = load_job_class(job_info.name, job_info.job_type)
 		if job_class.nil?
@@ -272,6 +277,10 @@ def run_job_with_info(job_info)
 	if job.status == "failed"
 		@log.error "Job #{job_info.name}(#{job_info.job_type}) failed: #{job.message}"
 	end
+
+    job_elapsed_time = ((Time.now - job_start_time) * 100).round / 100
+
+    @log.info "job #{job_info.name}.#{job_info.job_type} finished. time: #{job_elapsed_time} s status:#{job.status}"
 end
 
 def fail_job(job_info, message)
