@@ -1,0 +1,4 @@
+identifier: test
+description: This is test
+type: ruby
+class_name: TestJob

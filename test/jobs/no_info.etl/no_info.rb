@@ -1,0 +1,2 @@
+class NoInfoETLJob < Job
+end

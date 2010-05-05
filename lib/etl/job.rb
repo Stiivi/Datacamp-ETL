@@ -18,10 +18,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require 'lib/job_status'
-require 'lib/etl_defaults'
+require 'etl/job_status'
+require 'etl/etl_defaults'
 
 class Job
+attr_accessor :argument
+attr_accessor :status
+attr_accessor :message
+attr_accessor :phase
+attr_accessor :start_time
+attr_accessor :end_time
+attr_accessor :status_id
+
 attr_reader :connection
 attr_reader :table_prefix, :schema,  :files_directory
 attr_reader :name
@@ -30,72 +38,62 @@ attr_accessor :job_status
 attr_accessor :defaults
 attr_reader :defaults_domain
 attr_accessor :last_run_date
-attr_accessor :info
+attr_reader :info
+attr_reader :name
 
-def initialize(manager)
-    @manager = manager
-    @connection = @manager.connection
-    @schema = @manager.staging_schema
-    @table_prefix = "sta_"
-    @config = @manager.domains_config[@defaults_domain.to_s]
-    if not @config
-        @config = Hash.new
-    end
-end
-
-def name
-    return @info.name
+def initialize(manager, name, info)
+	@info = info
+	@name = name
+	@manager = manager
+	@connection = manager.connection
 end
 
 def prepare
     # do nothing
 end
+
 def defaults_domain=(domain)
     @defaults_domain = domain
     @config = @manager.domains_config[@defaults_domain.to_s]
 end
+
 def status=(status)
-    @job_status.status = status
+    @status = status
+	# FIXME: save job status
+    @manager.update_job_status(self)
 end
 
 def message=(message)
-    @job_status.message = message
-end
-def phase=(phase)
-    @job_status.phase = phase
-    @job_status.save
+    @message = message
+	# FIXME: save job status
+    @manager.update_job_status(self)
 end
 
-def status
-    @job_status.status
-end
-
-def message
-    @job_status.message
-end
-
-def phase
-    @job_status.phase
-end
-
-def fail(message)
-    @job_status.status = "failed"
-    @job_status.message = message
+def phase= (phase)
+#	@log "phase #{phase}"
+    @phase = phase
+	# FIXME: save job status
+    @manager.update_job_status(self)
 end
 
 def run
+# Do nothing by default
+# FIXME: shoud raise exception that this has to be overriden
+end
+
+def fail(message)
+    @status = "failed"
+    @message = message
+    @end_time = Time.now
+	# FIXME: save job status
+    @manager.update_job_status(self)
 end
 
 def finalize
-    @job_status.status = "ok" if @job_status.status == "running"
-    @job_status.end_date = Time.now
-
-    @job_status.save
-end
-
-def logger
-    # FIXME: depreciated
-    @manager.logger
+    @status = "ok" if @status == "running"
+    @end_time = Time.now
+    @manager.update_job_status(self)
+	# FIXME: save job status
 end
 
 def log

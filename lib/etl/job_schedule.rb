@@ -18,8 +18,17 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-class JobInfo < ActiveRecord::Base
-set_table_name "etl_jobs"
+# class JobSchedule < ActiveRecord::Base
+# set_table_name "etl_jobs"
+
+SEQUEL_NO_ASSOCIATIONS = true
+
+class JobSchedule
+
+def initialize(manager)
+	@manager = manager
+	@connection = manager.connection
+end
 
 def self.find_enabled(options = nil)
     job_type = nil

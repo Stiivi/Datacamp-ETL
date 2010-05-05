@@ -19,8 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'monitor'
-require 'lib/download_batch'
 require 'pathname'
+require 'etl/download_batch'
 
 module DownloadManagerDelegate
 def download_thread_did_start(download_manager, thread_id)
