@@ -23,6 +23,11 @@ class ETLManager
 attr_accessor :job_search_path
 attr_reader :connection
 
+@@default_manager = nil
+
+def create_default_manager(connection)
+end
+
 def initialize(connection)
 	@connection = connection
 	
@@ -197,6 +202,9 @@ def enabled_jobs
     return jobs.all
 end
 
+################################################################
+# Job running
+
 def run_scheduled_jobs(schedule)
 	jobs = scheduled_jobs(schedule)
 
@@ -296,6 +304,14 @@ def update_job_status(job)
 		}
 	rec = @connection[:etl_job_status].filter(:id => job.status_id)
 	rec.update(status)
+end
+
+################################################################
+# Defaults
+
+def defaults_for_domain(domain)
+	defaults = ETLDefaults.new(self, domain)
+	return defaults
 end
 
 end

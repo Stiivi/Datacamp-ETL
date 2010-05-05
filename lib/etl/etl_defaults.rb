@@ -22,35 +22,46 @@ require 'etl/etl_default_association'
 
 class ETLDefaults
 
-def initialize(domain)
+def initialize(manager, domain)
+	@connection = manager.connection
+	@defaults = @connection[:etl_defaults]
 	@domain = domain
 end
 
-def [](key)
-	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
-	if default.nil?
-		return nil
+def default_record(key)
+	sel = @defaults.filter(["domain = ? and default_key = ?", 
+						@domain, key.to_s])
+	if sel.count > 0
+		return sel.all[0]
 	else
-		return default.value
+		return nil
 	end
 end
 
+def [](key)
+	default = default_record(key)
+	if not default
+		return nil
+	end
+	return default[:value]
+end
+
 def value(key, default_value)
-	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
-	if default.nil?
+	value = self[key]
+
+	if not value
 		self[key] = default_value.to_s
 		return self[key]
 	else
-		return default.value
+		return value
 	end
 end
 
 def bool_value(key)
-	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
-	if default.nil? or default.value.nil?
+	value = self[key]
+	if not value
 		return false
 	else
-		value = default.value
 		if value == 1 or value.downcase == "true" or value.downcase == "yes"
 			return true
 		else
@@ -60,21 +71,25 @@ def bool_value(key)
 end
 
 
+
 def []=(key, value)
-	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
-	if default.nil?
-		default = ETLDefaultAssociation.new
-		default.domain = @domain
-		default.default_key = key.to_s
+	default = default_record(key)
+
+	if default
+		default[:value] = value.to_s
+		@defaults.filter(:id=>default[:id]).update(default)
+	else
+		default = { :domain => @domain,
+					:default_key => key.to_s,
+					:value => value}
+		@defaults.insert(default)
 	end
-	default.value = value.to_s
-	default.save
 end
 
 def delete(key)
-	default = ETLDefaultAssociation.find(:first, :conditions => ["domain = ? and default_key = ?", @domain, key.to_s])
-	if not default.nil?
-		ETLDefaultAssociation.delete(default.id)
+	default = default_record(key)
+	if default
+		@defaults.filter(:id=>default[:id]).delete
 	end
 end
 
