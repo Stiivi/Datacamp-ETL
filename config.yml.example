@@ -6,31 +6,41 @@
 ###########################################################
 # Paths
 
-# Where temporary ETL files are stored (such as files downloaded from web)
-# etl_files_path: /var/lib/datacamp-etl
+# Search Paths
 
-# Path to dump datasets. This path should be accesible by application to provide
-# dump API
-# dataset_dump_path: /var/lib/datacamp-etl/dumps
-
-# Path for log file
-# log_file: /var/lib/datacamp-etl/etl.log
-
-# Path to ETL jobs
+# job_search_path
+#
 # All jobs are searched here. The direcotry should contain subdirectories
 # similar to OS X bundles in form: job_name.job_type. Example: foo.loading
 
 # job_search_path: /usr/lib/datacamp-etl/jobs
 
+
+# connection_search_path
+#
+# Lists of database connections are stored here. The connection files are
+# YAML files containing hashes with root keys as connection names
+
+# connection_search_path: /usr/lib/datacamp-etl/connections
+
+# Where temporary ETL files are stored (such as files downloaded from web)
+# etl_files_path: /var/lib/datacamp-etl
+
+# Path for log file
+# log_file: /var/lib/datacamp-etl/etl.log
+
+
+# WARNING: Depreciated
+# Path to dump datasets. This path should be accesible by application to provide
+# dump API
+# dataset_dump_path: /var/lib/datacamp-etl/dumps
+
+
 ###########################################################
-# Database Connection
+# ETL Manager Connection
 
 connection:
   host: localhost
   username: root
   password: 
   charset: utf8
-
-staging_schema: datacamp_staging
-dataset_schema: datacamp_data
-app_schema: datacamp_app

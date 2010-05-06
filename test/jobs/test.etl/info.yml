@@ -1,4 +1,4 @@
-identifier: test
-description: This is test
+full_name: Test Job
+description: This description of test job
 type: ruby
-class_name: TestJob
+job_class: TestJob

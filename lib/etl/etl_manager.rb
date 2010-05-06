@@ -20,29 +20,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 class ETLManager
-attr_accessor :job_search_path
 attr_reader :connection
-
-@@default_manager = nil
-
-def create_default_manager(connection)
-end
 
 def initialize(connection)
 	@connection = connection
 	
 	@job_search_path = Array.new
     self.log_file = STDERR
-
-
-#	ActiveRecord::Base.establish_connection(
-#	  :adapter => "mysql",
-#	  :host => @connection_info["host"],
-#	  :username => @connection_info["username"],
-#	  :password => @connection_info["password"],
-#	  :database => @staging_schema,
-#	  :encoding => 'utf8')
-
 end
 
 ################################################################
@@ -92,96 +76,6 @@ end
 ################################################################
 # Jobs
 
-def path_for_job(job_name)
-    @job_search_path.each { |search_path|
-        job_path = Pathname.new("#{search_path}/#{job_name}.etl")
-        return job_path if job_path.directory?        
-    }
-    return nil
-end
-
-def job_with_name(job_name)
-	path = path_for_job(job_name)
-	if not path
-		raise RuntimeError, "Unknown job '#{job_name}'"
-		return
-	end
-	
-	info_file = Pathname.new(path) + 'info.yml'
-	job_name = Pathname.new(path).basename.to_s.gsub(/\.[^.]*$/, "")
-	
-	if info_file.exist?
-		# Info file exists
-		
-		info = YAML.load_file(info_file)
-		if info[:job_type] == "ruby" or not info[:job_type]
-			job = create_ruby_job(path, job_name, info)
-		else
-			raise RuntimeError, "Unknown job type"
-		end
-	else
-		# No info file, assume ruby job
-		job = create_ruby_job(path, job_name, nil)
-	end
-	return job
-
-	# FIXME: Implem,ent this!
-	#    @schema = @manager.staging_schema
-	#    @table_prefix = "sta_"
-	#    @config = @manager.domains_config[@defaults_domain.to_s]
-	#    if not @config
-	#        @config = Hash.new
-	#    end
-end
-
-def create_ruby_job(path, name, info)
-	###############################
-	# Get executable file
-	
-	ruby_executable = nil
-	if info
-		ruby_executable = info["executable"]
-	end
-	
-	if not ruby_executable
-		ruby_executable = "#{name}.rb"
-	end
-	
-	ruby_file = path + ruby_executable
-	
-    if not ruby_file.exist?
-	    raise RuntimeError, "Unable to find ruby file #{ruby_file}"
-	    return nil
-    end
-	
-	require ruby_file
-	
-	class_name = nil
-	if info
-		class_name = info["class_name"]
-	end
-	if not class_name
-		class_name = name.camelize + "ETLJob"
-	end
-
-
-	if not Class.class_exists?(class_name)
-        raise RuntimeError, "Undefined class #{class_name} for job '#{name}'"
-	end
-
-    job_class = Class.class_with_name(class_name)
-
-	@@job_superclass  = Job
-
-	if not job_class.is_kind_of_class(@@job_superclass)
-        raise RuntimeError, "Class #{job_class} is not kind of of #{@@job_superclass}"
-    end
-    
-    job = job_class.new(self, name, info)
-    
-    return job
-end
-
 def scheduled_jobs(schedule)
 	
 	jobs = @connection[:etl_schedule]
@@ -215,19 +109,25 @@ def run_scheduled_jobs(schedule)
 	end	
 
 	jobs.each { |job_info|
-		job = job_with_name(job_info[:name])
-		run_job(job, job_info[:argument])
+		run_named_job(job_info[:name], job_info[:argument])
 	}
 end
 
-def run_job_(name, argument)
+def run_named_job(name, argument = nil)
 
 	# FIXME: reset force run flag
 	@log.info "Running job #{name} (arg: '#{argument}')"
 
-	job = job_with_name(name)
+	bundle = JobBundle.bundle_with_name(name)
+	
+	if not bundle.is_loaded
+		@log.info "Loading bundle for job #{name}"
+		bundle.load
+	end
+	
+	job = bundle.job_class.new(self, bundle)
 
-	job.run
+	self.run_job(job, argument)
 end
 
 # FIXME: continue here
@@ -279,7 +179,6 @@ end
 
 def create_job_status(job)
 	# FIXME: write schedule ID
-	# FIXME: write sequential ID
 	status = {
 			:job_name => job.name,
 			:status => job.status,

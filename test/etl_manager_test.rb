@@ -10,7 +10,7 @@ def setup
 	
 	@manager.create_etl_manager_structures	
 
-    @manager.job_search_path = ["jobs", "another_jobs_dir"]
+	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
 end
 
 def test_initialize
@@ -28,24 +28,25 @@ def check_table(table_name)
 end
 
 def test_job_search_path
-    assert_not_nil(@manager.path_for_job("test2"))
-    assert_not_nil(@manager.path_for_job("test"))
+    assert_not_nil(JobBundle.path_for_job("test2"))
+    assert_not_nil(JobBundle.path_for_job("test"))
 end
 
 def test_job_bundle
-	job = @manager.job_with_name("test")
+	job = JobBundle.bundle_with_name("test")
 	assert_not_nil(job)
 	assert_equal("test", job.name)
 end
 def test_no_info_job_bundle
-	job = @manager.job_with_name("no_info")
+	job = JobBundle.bundle_with_name("no_info")
 	assert_not_nil(job)
 	assert_equal("no_info", job.name)
 end
 
 def test_no_info_job_bundle
 	assert_raise RuntimeError do
-		job = @manager.job_with_name("wrong_superclass")
+		bundle = JobBundle.bundle_with_name("wrong_superclass")
+		job_class = bundle.job_class
 	end
 end
 

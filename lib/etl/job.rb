@@ -31,20 +31,18 @@ attr_accessor :end_time
 attr_accessor :status_id
 
 attr_reader :connection
-attr_reader :table_prefix, :schema,  :files_directory
+attr_reader :files_directory
 attr_reader :name
 attr_reader :config
+attr_reader :defaults_domain
 attr_accessor :job_status
 attr_accessor :defaults
-attr_reader :defaults_domain
 attr_accessor :last_run_date
-attr_reader :info
-attr_reader :name
 
-def initialize(manager, name, info)
-	@info = info
-	@name = name
+def initialize(manager, bundle)
 	@manager = manager
+	@name = bundle.name
+	@bundle = bundle
 	@connection = manager.connection
 end
 

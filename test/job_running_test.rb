@@ -22,12 +22,16 @@ def setup
 	end
 end
 
-def test_demand_run
-	job = @manager.job_with_name('test')
-	
-	#assert_nothing_raised do
-		job.run
-	#end
+def test_job_name
+	bundle = JobBundle.bundle_with_name('test')
+	job = bundle.job_class.new(@manager, bundle)
+	assert_equal("test", job.name)
+end
+
+def test_single_run
+	assert_nothing_raised do
+		@manager.run_named_job('test')
+	end
 end
 
 def test_scheduled_run
