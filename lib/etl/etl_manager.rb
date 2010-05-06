@@ -22,6 +22,8 @@
 class ETLManager
 attr_reader :connection
 
+@connection_search_path = []
+
 def initialize(connection)
 	@connection = connection
 	
@@ -71,6 +73,48 @@ def log_file=(logfile)
     else
         @log.level = Logger::INFO
     end
+end
+
+
+################################################################
+# Connections
+
+def connection_search_path= (path)
+	@connection_search_path = path
+	reload_connections
+end
+
+def reload_connections
+	@named_connection_infos = Hash.new
+	
+    @connection_search_path.each { |search_path|
+    	path = Pathname.new(search_path)
+		path.children.each { |file|
+			begin
+				hash = YAML.load_file(file)
+				@named_connection_infos.merge!(hash)
+			rescue
+				@log.warn "Unable to include connections from file #{file}"		
+			end
+		}
+    }
+end
+
+def named_connection_info(name)
+	return @named_connection_infos[name.to_s]
+end
+
+def named_connection(name)
+	if not @named_connections
+		@named_connections = Hash.new
+	end
+	connection = @named_connections[name]
+	if connection
+		return connection
+	end
+	
+	connection = Sequel.connect(named_connection_info.name)
+	
 end
 
 ################################################################

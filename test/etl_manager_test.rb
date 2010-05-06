@@ -11,6 +11,7 @@ def setup
 	@manager.create_etl_manager_structures	
 
 	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
+	@manager.connection_search_path = ["connections"]
 end
 
 def test_initialize
@@ -18,6 +19,11 @@ def test_initialize
 	tables.each { |table|
 		check_table(table)
 	}
+end
+
+def test_connections
+	connection = @manager.named_connection_info("shop")
+	assert_not_nil(connection)
 end
 
 def check_table(table_name)

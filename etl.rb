@@ -22,7 +22,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require 'lib/job_manager'
+require 'etl'
 require 'optparse'
 
 class ETLTool
@@ -65,68 +65,61 @@ def initialize
     end
 end
 
-def create_job_manager
-    @job_manager = JobManager.new
+def create_etl_manager
+    @etl_manager = ETLManager.new
     if @debug
-        @job_manager.debug = true
+        @etl_manager.debug = true
     end
 
     begin
-        @job_manager.domains_config = @configuration["domains"]
-        @job_manager.establish_connection(@configuration["connection"])
-        @job_manager.log_file = @log_file
+        @etl_manager.domains_config = @configuration["domains"]
+        @etl_manager.establish_connection(@configuration["connection"])
+        @etl_manager.log_file = @log_file
 
-        @job_manager.staging_schema = @configuration["staging_schema"]
-        @job_manager.dataset_schema = @configuration["dataset_schema"]
+        @etl_manager.staging_schema = @configuration["staging_schema"]
+        @etl_manager.dataset_schema = @configuration["dataset_schema"]
         
         if @configuration["job_search_path"]
-            @job_manager.job_search_path = @configuration["job_search_path"]
+            JobBundle.job_search_path = @configuration["job_search_path"]
         else
-            @job_manager.job_search_path = [Pathname.new(__FILE__).dirname + "jobs"]
+            JobBundle.job_search_path = [Pathname.new(__FILE__).dirname + "jobs"]
         end
         
         if @configuration["etl_files_path"]
-            @job_manager.etl_files_path = @configuration["etl_files_path"]
+            @etl_manager.etl_files_path = @configuration["etl_files_path"]
         end
         
-        @job_manager.configuration = @configuration
+        @etl_manager.configuration = @configuration
     rescue => exception
-        @job_manager.log.error "#{exception.message}"
-        @job_manager.log.error exception.backtrace.join("\n")
+        @etl_manager.log.error "#{exception.message}"
+        @etl_manager.log.error exception.backtrace.join("\n")
     end
 end
    
 def run_scheduled_jobs
     begin
-        @job_manager.run_scheduled_jobs
+        @etl_manager.run_scheduled_jobs
     rescue => exception
-        @job_manager.log.error "#{exception.message}"
-        @job_manager.log.error exception.backtrace.join("\n")
+        @etl_manager.log.error "#{exception.message}"
+        @etl_manager.log.error exception.backtrace.join("\n")
     end
 end
 
 def run_jobs(jobs)
     jobs.each { |job|
-        split = job.split(".")
-        job_name = split[0]
-        if split.count == 1
-            job_type = "job"
-        else
-            job_type = split[1]
-        end
-        @job_manager.run_job_with_name(job_name, job_type)
+        @etl_manager.run_named_job(job)
     }
 end
 
 def run
-    create_job_manager
-    @job_manager.log.info "ETL start"
+    create_etl_manager
+    @etl_manager.log.info "ETL start"
     if not @jobs.empty?
         run_jobs(@jobs)
     else
         run_scheduled_jobs
     end
-    @job_manager.log.info "ETL finished"
+    @etl_manager.log.info "ETL finished"
 end
 
 end

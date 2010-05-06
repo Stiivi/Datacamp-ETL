@@ -7,7 +7,7 @@ def setup
 	@manager = ETLManager.new(@connection)
 	
 	@manager.create_etl_manager_structures	
-    @manager.job_search_path = ["jobs"]
+	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
 
 	schedules = @connection[:etl_schedule]
 	job = { :id => 1, :is_enabled => 1, :name => 'test', :argument => "pass", :schedule => 'daily' }
