@@ -23,6 +23,7 @@ attr_reader :name
 attr_reader :defaults_domain
 attr_reader :type
 attr_reader :job_class_name
+attr_reader :path
 
 attr_reader :is_loaded
 cattr_accessor :job_search_path
@@ -57,6 +58,21 @@ def self.bundle_with_name(name)
 	bundle = self.new(path)
 	@@named_bundles[name] = bundle
 	return bundle
+end
+
+def self.available_jobs
+	jobs = Array.new
+    @@job_search_path.each { |search_path|
+    	path = Pathname.new(search_path)
+		path.children.each { |file|
+			if file.directory? and file.extname == ".etl"
+				name = file.basename.to_s.gsub(/\.[^.]*$/, "")
+				jobs << name
+			end
+		}
+    }
+    
+    return jobs.uniq
 end
 
 

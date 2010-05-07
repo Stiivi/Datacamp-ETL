@@ -21,46 +21,83 @@
 
 class ETLManager
 attr_reader :connection
+attr_reader :log
+attr_reader :etl_files
+attr_accessor :debug
+
+cattr_reader :schedules_table_name
+cattr_reader :defaults_table_name
+cattr_reader :job_status_table_name
+
+@@schedules_table_name = :etl_schedules
+@@defaults_table_name = :etl_defaults
+@@job_status_table_name = :etl_job_status
+@@system_tables = 	[ @@schedules_table_name,
+					   @@defaults_table_name,
+					   @@job_status_table_name ]
 
 @connection_search_path = []
 
 def initialize(connection)
 	@connection = connection
-	
 	@job_search_path = Array.new
     self.log_file = STDERR
+
+	check_etl_schema
 end
 
+def check_etl_schema
+	@@system_tables.each {|table|
+		if not @connection.table_exists?(table)
+			raise RuntimeError, "ETL database schema is not initialized. Table #{table} is missing"
+		end
+	}
+
+end
 ################################################################
 # Initialization
 
-def create_etl_manager_structures
-    @connection.create_table(:etl_schedule) do
-		primary_key :id
-		string	    :name
-		string	    :argument
-		boolean     :is_enabled
-		integer	    :run_order
-		string	    :schedule
-		integer		:force_run
+def self.create_etl_manager_structures(connection, options = {})
+	if options[:force] == true
+		@@system_tables.each { | table |
+			if connection.table_exists?(table)
+				connection.drop_table(table)
+			end
+		}
+	else
+		@@system_tables.each { | table |
+			if connection.table_exists?(table)
+				raise RuntimeError, "Unable to create ETL structures. Table #{table} already exists."
+			end
+		}
 	end
 
-	@connection.create_table(:etl_defaults) do
+    connection.create_table(@@schedules_table_name) do
 		primary_key :id
-		string 		:domain
-		string 		:default_key
-		string 		:value
+		String	    :name
+		String	    :argument
+		Integer     :is_enabled
+		Integer	    :run_order
+		String	    :schedule
+		Integer		:force_run
 	end
 
-	@connection.create_table(:etl_job_status) do
+	connection.create_table(@@defaults_table_name) do
 		primary_key :id
-		integer		:job_id
-		string		:job_name
-		string		:status
-		string		:phase
-		string		:message
-		datetime	:start_time
-		datetime	:end_time
+		String 		:domain
+		String 		:default_key
+		String 		:value
+	end
+
+	connection.create_table(@@job_status_table_name) do
+		primary_key :id
+		Integer		:job_id
+		String		:job_name
+		String		:status
+		String		:phase
+		String		:message
+		DateTime	:start_time
+		DateTime	:end_time
 	end
 end
 
@@ -120,21 +157,32 @@ end
 ################################################################
 # Jobs
 
-def scheduled_jobs(schedule)
-	
-	jobs = @connection[:etl_schedule]
+def all_schedules
+	jobs = @connection[@@schedules_table_name]
+	jobs = jobs.order(:run_order)
+	return jobs
+end
 
-	jobs = jobs.filter("is_enabled = 1 AND (force_run = 1 OR schedule = ?)", schedule)
+def planned_schedules
+	date = Date.today
+	week_days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+	week_day = week_days[date.wday]
+	
+	jobs = @connection[@@schedules_table_name]
+
+	# Only daily/weekly schedules work at the moment
+	jobs = jobs.filter(:is_enabled => 1)
+	jobs = jobs.filter("(force_run = 1 OR schedule = ? OR schedule = 'daily')", week_day)
 	jobs = jobs.order(:run_order)
 
     return jobs.all
 end
 
-def enabled_jobs
-	
-	jobs = @connection[:etl_schedule]
+def forced_schedules
+	jobs = @connection[@@schedules_table_name]
 
-	jobs = jobs.filter(is_enabled => 1)
+	jobs = jobs.filter(:is_enabled => 1)
+	jobs = jobs.filter(:force_run => 1)
 	jobs = jobs.order(:run_order)
 
     return jobs.all
@@ -143,26 +191,41 @@ end
 ################################################################
 # Job running
 
-def run_scheduled_jobs(schedule)
-	jobs = scheduled_jobs(schedule)
+def run_scheduled_jobs
+	jobs = planned_schedules
+	@log.info "Running scheduled jobs (#{jobs.count})"
+	run_schedules(jobs)
+end
 
-	@log.info "Running all scheduled jobs (#{jobs.count})"
+def run_forced_jobs
+	jobs = forced_schedules
+	@log.info "Running forced jobs (#{jobs.count})"
+	run_schedules(jobs)
+end
 
-    if jobs.nil? or jobs.empty?
-        @log.info "No jobs to run"
+def run_schedules(schedules)
+	if schedules.nil? or schedules.empty?
+        @log.info "No schedules to run"
 	end	
 
-	jobs.each { |job_info|
-		run_named_job(job_info[:name], job_info[:argument])
+	schedules.each { |job_info|
+		id = job_info[:id]
+		name = job_info[:name]
+		argument = job_info[:argument]
+	    @log.info "Schedule #{job_info[:id]}: #{name}(#{argument})"
+		run_named_job(name, argument)
 	}
 end
 
 def run_named_job(name, argument = nil)
 
 	# FIXME: reset force run flag
-	@log.info "Running job #{name} (arg: '#{argument}')"
-
 	bundle = JobBundle.bundle_with_name(name)
+	@log.info "BUNDLE #{bundle.path}"
+	if not bundle
+		@log.error "Job #{name} does not exist"
+		return
+	end
 	
 	if not bundle.is_loaded
 		@log.info "Loading bundle for job #{name}"
@@ -178,7 +241,7 @@ end
 def run_job(job, argument)
 	error = false
 
-    @log.info "running job #{job.name} (argument: #{argument})"
+    @log.info "Running job '#{job.name}' with argument '#{argument}'"
 
     job_start_time = Time.now
 
@@ -218,7 +281,7 @@ def run_job(job, argument)
 
     job_elapsed_time = ((Time.now - job_start_time) * 100).round / 100
 
-    @log.info "job #{job.name} finished. time: #{job_elapsed_time} s status:#{job.status}"
+    @log.info "Job '#{job.name}' finished. time: #{job_elapsed_time}s status:#{job.status}"
 end
 
 def create_job_status(job)
@@ -256,5 +319,11 @@ def defaults_for_domain(domain)
 	defaults = ETLDefaults.new(self, domain)
 	return defaults
 end
+
+# Other
+def etl_files_path=(path)
+    @etl_files_path = Pathname.new(path)
+end
+
 
 end

@@ -92,7 +92,7 @@ def finalize
 end
 
 def log
-    @manager.logger
+    @manager.log
 end
 
 def files_directory

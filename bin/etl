@@ -22,6 +22,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+require 'rubygems'
 require 'etl'
 require 'optparse'
 
@@ -31,24 +32,28 @@ def initialize
     @options = {}
 
     OptionParser.new do |opts|
-        opts.banner = "Usage: etl.rb [options] [jobs]"
+        opts.banner = "Usage: etl [options] <command> [command-args]"
         
-        opts.on("-c", "--config CONFIG", "Specify configuration file.") do |config|
+        opts.on("-c", "--config CONFIG", "Specify a configuration file.") do |config|
             @options[:config] = config
         end
         opts.on("-d", "--debug", "Enable debugging") do
             @debug = true
         end
-        opts.on("--initialize", "Initialize ETL system (database tables)") do
-            @debug = true
+        opts.on("-F", "--force", "Try to force command (ignore some objections)") do
+            @force = true
         end
         opts.separator "\n"
-        opts.separator "* [jobs] is optional list of jobs to be run in form: name.type. Example: data.extraction"
-        opts.separator "* if no jobs are specified, then scheduled jobs are run"
-        opts.separator "* default configuration file is config.yml in current directory"
+        opts.separator "Commands:"
+        opts.separator "    list          - list available jobs"
+        opts.separator "    run [job]     - run all scheduled jobs or just specified job"
+        opts.separator "    list-schedule - display job schedule"
+        opts.separator "    initialize    - initialize ETL schema. Warning: this is destructive operation"
     end.parse!
 
-    @jobs = ARGV
+	@command = ARGV[0]
+	ARGV.delete_at(0)
+	@args = ARGV
 
     if @options[:config].nil?
         config_file = Pathname.new("config.yml")
@@ -61,27 +66,43 @@ def initialize
     end
     @configuration = YAML.load_file(config_file)
     
+    load_configuration
+end
+
+def load_configuration
+    # Logging
     if @configuration["log_file"]
         @log_file = @configuration["log_file"]
     else
         @log_file = STDERR
     end
+    
+    # Job Search Path
+    path = @configuration["job_search_path"]
+	if path.is_kind_of_class(String)
+		JobBundle.job_search_path = [path]
+	elsif path.is_kind_of_class(Array)
+		JobBundle.job_search_path = path
+	else
+		puts 'Unknown search path type'
+	end
+
+	# Connection
+	@connection_info = @configuration["connection"]
+	@connection = Sequel.connect(@connection_info)
+
 end
 
 def create_etl_manager
-    @etl_manager = ETLManager.new
+	
+    @etl_manager = ETLManager.new(@connection)
     if @debug
         @etl_manager.debug = true
     end
 
     begin
-        @etl_manager.domains_config = @configuration["domains"]
-        @etl_manager.establish_connection(@configuration["connection"])
         @etl_manager.log_file = @log_file
 
-        @etl_manager.staging_schema = @configuration["staging_schema"]
-        @etl_manager.dataset_schema = @configuration["dataset_schema"]
-        
         if @configuration["job_search_path"]
             JobBundle.job_search_path = @configuration["job_search_path"]
         else
@@ -92,7 +113,6 @@ def create_etl_manager
             @etl_manager.etl_files_path = @configuration["etl_files_path"]
         end
         
-        @etl_manager.configuration = @configuration
     rescue => exception
         @etl_manager.log.error "#{exception.message}"
         @etl_manager.log.error exception.backtrace.join("\n")
@@ -108,21 +128,78 @@ def run_scheduled_jobs
     end
 end
 
-def run_jobs(jobs)
-    jobs.each { |job|
-        @etl_manager.run_named_job(job)
-    }
+def run_named_job(job_name)
+	if @args.count > 1
+		argument = @args[1]
+		puts "ARGS: #{@args.join(',')}"
+	else
+		argument = nil
+	end
+	
+    begin
+	    @etl_manager.run_named_job(job_name, argument)
+    rescue => exception
+        @etl_manager.log.error "#{exception.message}"
+        @etl_manager.log.error exception.backtrace.join("\n")
+    end
+end
+
+def list_available_jobs
+	jobs = JobBundle.available_jobs
+	jobs.each { |job|
+		puts job
+	}
+end
+
+def run_jobs
+	if @args.count == 0
+		run_scheduled_jobs
+	else
+		run_named_job(@args[0])
+	end
+end
+
+def show_schedule
+	schedules = @etl_manager.all_schedules
+
+	puts "ID\tname\torder\tschedule\tenabled"	
+	schedules.each { |schedule|
+		puts "#{schedule[:id]}\t#{schedule[:name]}\t#{schedule[:order]}\t#{schedule[:schedule]}\t#{schedule[:is_enabled]}"
+	}
+end
+
+def initialize_etl_schema
+	options = { :force => @force }
+	ETLManager.create_etl_manager_structures(@connection, options)
 end
 
 def run
-    create_etl_manager
-    @etl_manager.log.info "ETL start"
-    if not @jobs.empty?
-        run_jobs(@jobs)
-    else
-        run_scheduled_jobs
-    end
-    @etl_manager.log.info "ETL finished"
+	if @command.downcase == "initialize"
+		initialize_etl_schema
+		return
+	end
+	
+	# Here we expect schema to be initialized and working
+	create_etl_manager
+
+	case @command.downcase
+	when "list" then
+		list_available_jobs
+	when "run" then
+		run_jobs
+	when "list-schedule" then
+		show_schedule
+	else 
+		puts "Unknown command #{@command}"
+	end
+#    create_etl_manager
+#    @etl_manager.log.info "ETL start"
+#    if not @jobs.empty?
+#        run_jobs(@jobs)
+#    else
+#        run_scheduled_jobs
+#    end
+#    @etl_manager.log.info "ETL finished"
 end
 
 end
