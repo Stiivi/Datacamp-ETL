@@ -18,12 +18,18 @@ end
 def is_kind_of_class(a_class)
     current = self
     while current do
-        current = current.superclass
         if current == a_class
             return true
         end
+        current = current.superclass
     end
     return false
 end
 
+end
+
+class Object
+def is_kind_of_class(a_class)
+	return self.class.is_kind_of_class(a_class)
+end
 end
