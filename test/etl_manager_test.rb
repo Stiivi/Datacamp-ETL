@@ -8,15 +8,14 @@ def setup
 	@connection = Sequel.sqlite
 	@manager = ETLManager.new(@connection)
 	
-	@manager.create_etl_manager_structures	
+	ETLManager.create_etl_manager_structures(@connection)
 
 	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
 	@manager.connection_search_path = ["connections"]
 end
 
 def test_initialize
-	tables = [:etl_schedule, :etl_defaults, :etl_job_status]
-	tables.each { |table|
+	ETLManager.system_table_names.each { |table|
 		check_table(table)
 	}
 end
@@ -57,25 +56,28 @@ def test_no_info_job_bundle
 end
 
 def test_schedules
-	jobs = @manager.scheduled_jobs("daily")
+	jobs = @manager.planned_schedules("daily")
 	assert_equal(0, jobs.count)
 
 	schedule_some_jobs
-	schedules = @connection[:etl_schedule]
-	assert_equal(5, schedules.count)
+	schedules = @connection[ETLManager.schedules_table_name]
+	assert_equal(6, schedules.count)
 
-	jobs = @manager.scheduled_jobs("daily")
+	jobs = @manager.planned_schedules("daily")
+	# daily + mon+force
 	assert_equal(2, jobs.count)
 
-	jobs = @manager.scheduled_jobs("monday")
-	assert_equal(2, jobs.count)
+	jobs = @manager.planned_schedules("monday")
+	# mon, mon, daily
+	assert_equal(3, jobs.count)
 
-	jobs = @manager.scheduled_jobs("saturday")
-	assert_equal(2, jobs.count)
+	jobs = @manager.planned_schedules("saturday")
+	# sat, daily, mon+force
+	assert_equal(3, jobs.count)
 end
 
 def schedule_some_jobs
-	schedules = @connection[:etl_schedule]
+	schedules = @connection[ETLManager.schedules_table_name]
 	job = { :id => 1, :is_enabled => 1, :name => 'daily', :schedule => 'daily' }
 	schedules.insert(job)
 	job = { :id => 2, :is_enabled => 1, :name => 'mon_job', :schedule => 'monday' }
@@ -85,6 +87,8 @@ def schedule_some_jobs
 	job = { :id => 4, :is_enabled => 1, :name => 'forced', :schedule => 'monday', :force_run => 1 }
 	schedules.insert(job)
 	job = { :id => 5, :is_enabled => 0, :name => 'forced', :schedule => 'monday', :force_run => 1 }
+	schedules.insert(job)
+	job = { :id => 6, :is_enabled => 0, :name => 'forced', :schedule => 'daily'}
 	schedules.insert(job)
 end
 

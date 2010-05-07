@@ -6,10 +6,10 @@ def setup
 	@connection = Sequel.sqlite
 	@manager = ETLManager.new(@connection)
 	
-	@manager.create_etl_manager_structures	
+	ETLManager.create_etl_manager_structures(@connection)
 	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
 
-	schedules = @connection[:etl_schedule]
+	schedules = @connection[ETLManager.schedules_table_name]
 	job = { :id => 1, :is_enabled => 1, :name => 'test', :argument => "pass", :schedule => 'daily' }
 	schedules.insert(job)
 	job = { :id => 2, :is_enabled => 1, :name => 'test', :argument => "fail", :schedule => 'daily' }
@@ -36,7 +36,7 @@ end
 
 def test_scheduled_run
 	assert_nothing_raised do
-		@manager.run_scheduled_jobs('daily')
+		@manager.run_scheduled_jobs
 	end
 	
 	table = @connection[:test_table]

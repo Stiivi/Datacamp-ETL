@@ -28,11 +28,12 @@ attr_accessor :debug
 cattr_reader :schedules_table_name
 cattr_reader :defaults_table_name
 cattr_reader :job_status_table_name
+cattr_reader :system_table_names
 
 @@schedules_table_name = :etl_schedules
 @@defaults_table_name = :etl_defaults
 @@job_status_table_name = :etl_job_status
-@@system_tables = 	[ @@schedules_table_name,
+@@system_table_names = 	[ @@schedules_table_name,
 					   @@defaults_table_name,
 					   @@job_status_table_name ]
 
@@ -43,7 +44,7 @@ def initialize(connection)
 	@job_search_path = Array.new
     self.log_file = STDERR
 
-	check_etl_schema
+	# check_etl_schema
 end
 
 def check_etl_schema
@@ -59,13 +60,13 @@ end
 
 def self.create_etl_manager_structures(connection, options = {})
 	if options[:force] == true
-		@@system_tables.each { | table |
+		@@system_table_names.each { | table |
 			if connection.table_exists?(table)
 				connection.drop_table(table)
 			end
 		}
 	else
-		@@system_tables.each { | table |
+		@@system_table_names.each { | table |
 			if connection.table_exists?(table)
 				raise RuntimeError, "Unable to create ETL structures. Table #{table} already exists."
 			end
@@ -91,8 +92,8 @@ def self.create_etl_manager_structures(connection, options = {})
 
 	connection.create_table(@@job_status_table_name) do
 		primary_key :id
-		Integer		:job_id
 		String		:job_name
+		Integer		:schedule_id
 		String		:status
 		String		:phase
 		String		:message
@@ -163,16 +164,19 @@ def all_schedules
 	return jobs
 end
 
-def planned_schedules
-	date = Date.today
-	week_days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-	week_day = week_days[date.wday]
+def planned_schedules(schedule = nil)
+
+	if !schedule
+		date = Date.today
+		week_days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+		schedule = week_days[date.wday]
+	end
 	
 	jobs = @connection[@@schedules_table_name]
 
 	# Only daily/weekly schedules work at the moment
 	jobs = jobs.filter(:is_enabled => 1)
-	jobs = jobs.filter("(force_run = 1 OR schedule = ? OR schedule = 'daily')", week_day)
+	jobs = jobs.filter("(force_run = 1 OR schedule = ? OR schedule = 'daily')", schedule)
 	jobs = jobs.order(:run_order)
 
     return jobs.all

@@ -46,7 +46,8 @@ def initialize
         opts.separator "\n"
         opts.separator "Commands:"
         opts.separator "    list          - list available jobs"
-        opts.separator "    run [job]     - run all scheduled jobs or just specified job"
+        opts.separator "    run <job>     - specified job"
+        opts.separator "    run-scheduled - run all scheduled jobs and jobs forced to be run"
         opts.separator "    list-schedule - display job schedule"
         opts.separator "    initialize    - initialize ETL schema. Warning: this is destructive operation"
     end.parse!
@@ -128,7 +129,14 @@ def run_scheduled_jobs
     end
 end
 
-def run_named_job(job_name)
+def run_named_job
+	if @args.count == 0
+		raise RuntimeError, "No job name given"
+		return
+	else
+		job_name = @args[0]
+	end
+
 	if @args.count > 1
 		argument = @args[1]
 		puts "ARGS: #{@args.join(',')}"
@@ -149,14 +157,6 @@ def list_available_jobs
 	jobs.each { |job|
 		puts job
 	}
-end
-
-def run_jobs
-	if @args.count == 0
-		run_scheduled_jobs
-	else
-		run_named_job(@args[0])
-	end
 end
 
 def show_schedule
@@ -186,7 +186,9 @@ def run
 	when "list" then
 		list_available_jobs
 	when "run" then
-		run_jobs
+		run_named_job
+	when "run-scheduled" then
+		run_scheduled_jobs
 	when "list-schedule" then
 		show_schedule
 	else 

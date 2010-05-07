@@ -6,7 +6,7 @@ class BasicTest < Test::Unit::TestCase
 def setup
 	@connection = Sequel.sqlite
 	@manager = ETLManager.new(@connection)
-	@manager.create_etl_manager_structures	
+	ETLManager.create_etl_manager_structures(@connection)
 end
 
 def test_defaults
