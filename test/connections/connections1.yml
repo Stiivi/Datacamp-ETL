@@ -1,0 +1,18 @@
+shop:
+  adapter: postgres
+  host: localhost
+  atabase: shop
+
+someapp:
+  adapter: sqlite3
+  host: localhost
+  database: someapp
+	
+somedata:
+  adapter: postgres
+  host: localhost
+  database: somedata
+
+	
+	
+	

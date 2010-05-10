@@ -1,0 +1,12 @@
+another_shop:
+  adapter: mysql
+  host: localhost
+  database: shop
+
+another_app:
+  adapter: sqlite3
+  host: localhost
+  database: someapp
+	
+	
+	
