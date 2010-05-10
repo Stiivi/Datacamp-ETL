@@ -19,6 +19,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+require 'etl/etl_job_schedule'
+require 'etl/etl_job_status'
+
 class ETLManager
 attr_reader :connection
 attr_reader :log
@@ -37,10 +40,8 @@ cattr_reader :system_table_names
 					   @@defaults_table_name,
 					   @@job_status_table_name ]
 
-@connection_search_path = []
-
 def initialize(connection)
-	@connection = connection
+	DataMapper.setup(:default, connection)
 	@job_search_path = Array.new
     self.log_file = STDERR
 
@@ -57,6 +58,17 @@ def check_etl_schema
 end
 ################################################################
 # Initialization
+
+def create_etl_manager_structures(options = {})
+	@log.info "Creating ETL manager structures"
+	if options[:force] == true
+		DataMapper.auto_migrate!
+	else
+		DataMapper.auto_upgrade!
+	end
+	
+	foo = ETLDefaultAssociation.all.count
+end
 
 def self.create_etl_manager_structures(connection, options = {})
 	if options[:force] == true
@@ -113,55 +125,11 @@ def log_file=(logfile)
     end
 end
 
-
-################################################################
-# Connections
-
-def connection_search_path= (path)
-	@connection_search_path = path
-	reload_connections
-end
-
-def reload_connections
-	@named_connection_infos = Hash.new
-	
-    @connection_search_path.each { |search_path|
-    	path = Pathname.new(search_path)
-		path.children.each { |file|
-			begin
-				hash = YAML.load_file(file)
-				@named_connection_infos.merge!(hash)
-			rescue
-				@log.warn "Unable to include connections from file #{file}"		
-			end
-		}
-    }
-end
-
-def named_connection_info(name)
-	return @named_connection_infos[name.to_s]
-end
-
-def named_connection(name)
-	if not @named_connections
-		@named_connections = Hash.new
-	end
-	connection = @named_connections[name]
-	if connection
-		return connection
-	end
-	
-	connection = Sequel.connect(named_connection_info.name)
-	
-end
-
 ################################################################
 # Jobs
 
 def all_schedules
-	jobs = @connection[@@schedules_table_name]
-	jobs = jobs.order(:run_order)
-	return jobs
+	return ETLJobSchedule.all
 end
 
 def planned_schedules(schedule = nil)
@@ -172,24 +140,19 @@ def planned_schedules(schedule = nil)
 		schedule = week_days[date.wday]
 	end
 	
-	jobs = @connection[@@schedules_table_name]
-
 	# Only daily/weekly schedules work at the moment
-	jobs = jobs.filter(:is_enabled => 1)
-	jobs = jobs.filter("(force_run = 1 OR schedule = ? OR schedule = 'daily')", schedule)
-	jobs = jobs.order(:run_order)
 
-    return jobs.all
+	expr = "is_enabled AND (force_run = 1 OR schedule = ? OR schedule = 'daily')"
+	schedules = ETLJobSchedule.all(:conditions => [expr, schedule], :order => [:run_order])
+
+    return schedules
 end
 
 def forced_schedules
-	jobs = @connection[@@schedules_table_name]
+	conds = {:is_enabled => 1, :force_run => 1}
+	schedules = ETLJobSchedule.all(:conditions => conds, :order => [:run_order])
 
-	jobs = jobs.filter(:is_enabled => 1)
-	jobs = jobs.filter(:force_run => 1)
-	jobs = jobs.order(:run_order)
-
-    return jobs.all
+    return schedules
 end
 
 ################################################################
@@ -212,12 +175,9 @@ def run_schedules(schedules)
         @log.info "No schedules to run"
 	end	
 
-	schedules.each { |job_info|
-		id = job_info[:id]
-		name = job_info[:name]
-		argument = job_info[:argument]
-	    @log.info "Schedule #{job_info[:id]}: #{name}(#{argument})"
-		run_named_job(name, argument)
+	schedules.each { |schedule|
+	    # @log.info "Schedule #{schedule.id}: #{schedule.job_name}(#{schedule.argument})"
+		run_named_job(schedule.job_name, schedule.argument)
 	}
 end
 
@@ -225,7 +185,6 @@ def run_named_job(name, argument = nil)
 
 	# FIXME: reset force run flag
 	bundle = JobBundle.bundle_with_name(name)
-	@log.info "BUNDLE #{bundle.path}"
 	if not bundle
 		@log.error "Job #{name} does not exist"
 		return
@@ -252,69 +211,15 @@ def run_job(job, argument)
 	# FIXME: instantiate for each run (keep class not instance)
 
 	# Prepare job status
-	job.status = "running"
-	job.start_time = Time.now
-	create_job_status(job)
+	options = Hash.new
 	
-	# FIXME: Prepare defaults
-	# job.defaults_domain = job_info.name if job.defaults_domain.nil?
-	
-	# job.defaults = ETLDefaults.new(job.defaults_domain)
-	# job.last_run_date = job_info.last_run_date
-	job.argument = argument
-	job.prepare
-
-	# FIXME: prefix log as job log
-    if not @debug
-        begin
-            job.run
-            job.finalize
-        rescue
-            job.status = "failed"
-            job.message = $!.message
-            job.finalize
-        end
-    else
-        job.run
-        job.finalize
-    end    
-
-	if job.status == "failed"
-		@log.error "Job #{job.name} failed: #{job.message}"
+	if @debug
+		options[:debug] = true
 	end
-
-    job_elapsed_time = ((Time.now - job_start_time) * 100).round / 100
-
-    @log.info "Job '#{job.name}' finished. time: #{job_elapsed_time}s status:#{job.status}"
+	
+	job.launch_with_argument(argument, options)
 end
 
-def create_job_status(job)
-	# FIXME: write schedule ID
-	status = {
-			:job_name => job.name,
-			:status => job.status,
-			:phase => job.phase,
-			:message => job.message,
-			:start_time => job.start_time,
-			:end_time => job.end_time
-		}
-	id = @connection[:etl_job_status].insert(status)
-	job.status_id = id
-end
-def update_job_status(job)
-	# FIXME: write schedule ID
-	# FIXME: write sequential ID
-	status = {
-			:job_name => job.name,
-			:status => job.status,
-			:phase => job.phase,
-			:message => job.message,
-			:start_time => job.start_time,
-			:end_time => job.end_time
-		}
-	rec = @connection[:etl_job_status].filter(:id => job.status_id)
-	rec.update(status)
-end
 
 ################################################################
 # Defaults

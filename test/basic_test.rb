@@ -4,9 +4,8 @@ require 'etl'
 
 class BasicTest < Test::Unit::TestCase
 def setup
-	@connection = Sequel.sqlite
-	@manager = ETLManager.new(@connection)
-	ETLManager.create_etl_manager_structures(@connection)
+	@manager = ETLManager.new('sqlite3::memory:')
+	@manager.create_etl_manager_structures
 end
 
 def test_defaults

@@ -5,31 +5,25 @@ require 'etl'
 
 class ETLManagerTest < Test::Unit::TestCase
 def setup
-	@connection = Sequel.sqlite
-	@manager = ETLManager.new(@connection)
+	@manager = ETLManager.new('sqlite3::memory:')
+	@manager.create_etl_manager_structures(:force => true)
+	@manager.debug = true
 	
-	ETLManager.create_etl_manager_structures(@connection)
-
 	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
-	@manager.connection_search_path = ["connections"]
-end
-
-def test_initialize
-	ETLManager.system_table_names.each { |table|
-		check_table(table)
-	}
+	ConnectionManager.default_manager.connection_search_path = ["connections"]
 end
 
 def test_connections
-	connection = @manager.named_connection_info("shop")
-	assert_not_nil(connection)
-end
-
-def check_table(table_name)
-	assert_nothing_raised do
-		table = @connection[table_name]
-		table.count
-	end
+	connection_manager = ConnectionManager.default_manager
+	
+	info = connection_manager.named_connection_info("shop")
+	assert_not_nil(info)
+	
+	connection = Sequel.connect('sqlite:/')
+	connection_manager.add_named_connection(connection, "default")
+	connection2 = connection_manager.named_connection("default")
+	assert_equal(connection, connection2)
+	
 end
 
 def test_job_search_path
@@ -60,36 +54,39 @@ def test_schedules
 	assert_equal(0, jobs.count)
 
 	schedule_some_jobs
-	schedules = @connection[ETLManager.schedules_table_name]
-	assert_equal(6, schedules.count)
+	assert_equal(6, @manager.all_schedules.count)
 
-	jobs = @manager.planned_schedules("daily")
 	# daily + mon+force
-	assert_equal(2, jobs.count)
+	assert_equal(2, @manager.planned_schedules("daily").count)
 
-	jobs = @manager.planned_schedules("monday")
 	# mon, mon, daily
-	assert_equal(3, jobs.count)
+	assert_equal(3, @manager.planned_schedules("monday").count)
 
-	jobs = @manager.planned_schedules("saturday")
 	# sat, daily, mon+force
-	assert_equal(3, jobs.count)
+	assert_equal(3, @manager.planned_schedules("saturday").count)
+
+	# two forced, but one is not enabled
+	assert_equal(1, @manager.forced_schedules.count)
 end
 
 def schedule_some_jobs
-	schedules = @connection[ETLManager.schedules_table_name]
-	job = { :id => 1, :is_enabled => 1, :name => 'daily', :schedule => 'daily' }
-	schedules.insert(job)
-	job = { :id => 2, :is_enabled => 1, :name => 'mon_job', :schedule => 'monday' }
-	schedules.insert(job)
-	job = { :id => 3, :is_enabled => 1, :name => 'sat_job', :schedule => 'saturday' }
-	schedules.insert(job)
-	job = { :id => 4, :is_enabled => 1, :name => 'forced', :schedule => 'monday', :force_run => 1 }
-	schedules.insert(job)
-	job = { :id => 5, :is_enabled => 0, :name => 'forced', :schedule => 'monday', :force_run => 1 }
-	schedules.insert(job)
-	job = { :id => 6, :is_enabled => 0, :name => 'forced', :schedule => 'daily'}
-	schedules.insert(job)
+	schedule = ETLJobSchedule.new({ :id => 1, :is_enabled => 1, :job_name => 'daily', :schedule => 'daily' })
+	schedule.save
+
+	schedule = ETLJobSchedule.new({ :id => 2, :is_enabled => 1, :job_name => 'mon_job', :schedule => 'monday' })
+	schedule.save
+
+	schedule = ETLJobSchedule.new({ :id => 3, :is_enabled => 1, :job_name => 'sat_job', :schedule => 'saturday' })
+	schedule.save
+
+	schedule = ETLJobSchedule.new({ :id => 4, :is_enabled => 1, :job_name => 'forced', :schedule => 'monday', :force_run => 1 })
+	schedule.save
+
+	schedule = ETLJobSchedule.new({ :id => 5, :is_enabled => 0, :job_name => 'forced', :schedule => 'monday', :force_run => 1 })
+	schedule.save
+
+	schedule = ETLJobSchedule.new({ :id => 6, :is_enabled => 0, :job_name => 'forced', :schedule => 'daily'})
+	schedule.save
 end
 
 end

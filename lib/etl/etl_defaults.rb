@@ -18,30 +18,25 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+require 'etl/etl_default_association'
+
 class ETLDefaults
 
 def initialize(manager, domain)
-	@connection = manager.connection
-	@defaults = @connection[:etl_defaults]
+	@manager = manager
 	@domain = domain
 end
 
-def default_record(key)
-	sel = @defaults.filter(["domain = ? and default_key = ?", 
-						@domain, key.to_s])
-	if sel.count > 0
-		return sel.all[0]
-	else
-		return nil
-	end
+def default_association(key)
+	return ETLDefaultAssociation.first( {:domain => @domain, :default_key => key} )
 end
 
 def [](key)
-	default = default_record(key)
+	default = default_association(key)
 	if not default
 		return nil
 	end
-	return default[:value]
+	return default.default_value
 end
 
 def value(key, default_value)
@@ -71,23 +66,24 @@ end
 
 
 def []=(key, value)
-	default = default_record(key)
+	default = default_association(key)
 
 	if default
-		default[:value] = value.to_s
-		@defaults.filter(:id=>default[:id]).update(default)
+		default.value = value.to_s
+		default.save
 	else
-		default = { :domain => @domain,
-					:default_key => key.to_s,
-					:value => value}
-		@defaults.insert(default)
+		default = ETLDefaultAssociation.new
+		default.domain = @domain
+		default.default_key = key.to_s
+		default.default_value = value
+		default.save
 	end
 end
 
 def delete(key)
-	default = default_record(key)
+	default = default_association(key)
 	if default
-		@defaults.filter(:id=>default[:id]).delete
+		default.destroy
 	end
 end
 

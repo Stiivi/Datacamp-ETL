@@ -23,7 +23,6 @@ require 'yaml'
 require 'pathname'
 require 'etl/job'
 require 'etl/job_info'
-require 'etl/job_status'
 require 'etl/download_manager'
 
 # Main ETL class that manages all jobs. Use this object to:
@@ -91,13 +90,15 @@ def run_job_with_info(job_info)
         @log.error "Job #{job_info.name}(#{job_info.job_type}) failed: #{$!.message}"
         @log.error exception.backtrace.join("\n")
 
+		# FIXME: we have no job status here
+
 		fail_job(job_info, $!.message)
 		return
 	end
 
 	# Prepare job status
 	job.info = job_info
-	job.job_status = JobStatus.new
+	job.job_status = ETLJobStatus.new
 	job.job_status.status = "running"
 	job.job_status.start_date = Time.now
 	job.job_status.job_name = job_info.name

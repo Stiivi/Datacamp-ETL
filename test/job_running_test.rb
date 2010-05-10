@@ -3,19 +3,23 @@ require 'etl'
 
 class JobRunningTest < Test::Unit::TestCase
 def setup
-	@connection = Sequel.sqlite
-	@manager = ETLManager.new(@connection)
-	
-	ETLManager.create_etl_manager_structures(@connection)
-	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
+	@manager = ETLManager.new('sqlite3::memory:')
+	@manager.create_etl_manager_structures(:force => true)
+	@manager.debug = true
 
-	schedules = @connection[ETLManager.schedules_table_name]
-	job = { :id => 1, :is_enabled => 1, :name => 'test', :argument => "pass", :schedule => 'daily' }
-	schedules.insert(job)
-	job = { :id => 2, :is_enabled => 1, :name => 'test', :argument => "fail", :schedule => 'daily' }
-	schedules.insert(job)
-	job = { :id => 3, :is_enabled => 1, :name => 'test', :argument => "fail", :schedule => 'daily' }
-	schedules.insert(job)
+	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
+	@connection_manager = ConnectionManager.default_manager
+	@connection_manager.connection_search_path = ["connections"]
+		
+	schedule = ETLJobSchedule.new({ :is_enabled => 1, :job_name => 'test', :argument => 'pass', :schedule => 'daily' })
+	schedule.save
+	schedule = ETLJobSchedule.new({ :is_enabled => 1, :job_name => 'test', :argument => 'fail', :schedule => 'daily' })
+	schedule.save
+	schedule = ETLJobSchedule.new({ :is_enabled => 1, :job_name => 'test', :argument => 'fail', :schedule => 'daily' })
+	schedule.save
+	
+	@connection = Sequel.sqlite
+	@connection_manager.add_named_connection(@connection, "default")
 
 	@connection.create_table :test_table do
 		string :message
@@ -35,16 +39,17 @@ def test_single_run
 end
 
 def test_scheduled_run
+	table = @connection[:test_table]
+	
+	table.delete
+	assert_equal(0, table.count)
+
 	assert_nothing_raised do
 		@manager.run_scheduled_jobs
 	end
-	
+		
 	table = @connection[:test_table]
 	assert_equal(1, table.count)
-
-	table = @connection[:etl_job_status]
-	assert_equal(3, table.count)
-	
 end
 
 end

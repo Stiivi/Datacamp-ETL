@@ -1,8 +1,15 @@
 class TestJob < Job
+def prepare
+	connection_manager = ConnectionManager.default_manager
+	@connection = connection_manager.named_connection("default")
+	if !@connection
+		@connection = connection_manager.create_connection("default", "default")	
+	end
+end
+
 def run
-	table = @connection[:test_table]
 	if @argument == "fail"
-		self.fail("test just failed")
+		self.fail("This test was planned to fail")
 	elsif @argument == "wait"
 		log.info "Waiting for long operation to finish (sleeping)"
 		self.phase = "waiting"
@@ -10,6 +17,8 @@ def run
 		self.phase = "finished"
 		log.info "Long operation finished"
 	else # == "fail"
+		log.info "Test Job - insert"
+		table = @connection[:test_table]
 		table.insert({:message => "test"})
 	end
 end

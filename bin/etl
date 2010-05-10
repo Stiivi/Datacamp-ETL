@@ -40,16 +40,17 @@ def initialize
         opts.on("-d", "--debug", "Enable debugging") do
             @debug = true
         end
-        opts.on("-F", "--force", "Try to force command (ignore some objections)") do
+        opts.on("-F", "--force", "Try to force command") do
             @force = true
         end
         opts.separator "\n"
         opts.separator "Commands:"
-        opts.separator "    list          - list available jobs"
-        opts.separator "    run <job>     - specified job"
-        opts.separator "    run-scheduled - run all scheduled jobs and jobs forced to be run"
-        opts.separator "    list-schedule - display job schedule"
-        opts.separator "    initialize    - initialize ETL schema. Warning: this is destructive operation"
+        opts.separator "    list-jobs       - list available jobs"
+        opts.separator "    list-connectios - list available connections"
+        opts.separator "    run <job>       - specified job"
+        opts.separator "    run-scheduled   - run all scheduled jobs and jobs forced to be run"
+        opts.separator "    list-schedule   - display job schedule"
+        opts.separator "    initialize      - initialize ETL schema"
     end.parse!
 
 	@command = ARGV[0]
@@ -84,19 +85,27 @@ def load_configuration
 		JobBundle.job_search_path = [path]
 	elsif path.is_kind_of_class(Array)
 		JobBundle.job_search_path = path
-	else
-		puts 'Unknown search path type'
+	elsif path
+		puts 'Unknown job search path type (should be string or array)'
+	end
+
+	# Connection Search Path
+    path = @configuration["connection_search_path"]
+	if path.is_kind_of_class(String)
+		ConnectionManager.default_manager.connection_search_path = [path]
+	elsif path.is_kind_of_class(Array)
+		ConnectionManager.default_manager.connection_search_path = path
+	elsif path
+		puts 'Unknown connection search path type (should be string or array)'
 	end
 
 	# Connection
 	@connection_info = @configuration["connection"]
-	@connection = Sequel.connect(@connection_info)
-
 end
 
 def create_etl_manager
 	
-    @etl_manager = ETLManager.new(@connection)
+    @etl_manager = ETLManager.new(@connection_info)
     if @debug
         @etl_manager.debug = true
     end
@@ -159,6 +168,13 @@ def list_available_jobs
 	}
 end
 
+def list_available_connections
+	list = ConnectionManager.default_manager.available_connections
+	list.each { |connection|
+		puts connection
+	}
+end
+
 def show_schedule
 	schedules = @etl_manager.all_schedules
 
@@ -170,21 +186,19 @@ end
 
 def initialize_etl_schema
 	options = { :force => @force }
-	ETLManager.create_etl_manager_structures(@connection, options)
+	@etl_manager.create_etl_manager_structures(options)
 end
 
 def run
-	if @command.downcase == "initialize"
-		initialize_etl_schema
-		return
-	end
-	
-	# Here we expect schema to be initialized and working
 	create_etl_manager
 
 	case @command.downcase
-	when "list" then
+	when "list-jobs" then
 		list_available_jobs
+	when "list-connections" then
+		list_available_connections
+	when "initialize" then
+		initialize_etl_schema
 	when "run" then
 		run_named_job
 	when "run-scheduled" then

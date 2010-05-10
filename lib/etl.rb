@@ -21,13 +21,14 @@
 
 require 'sequel'
 require 'active_record'
+require 'dm-core'
 
+require 'etl/connection_manager'
 require 'etl/class_additions'
 require 'etl/job_bundle'
 require 'etl/job'
 require 'etl/etl_manager'
 require 'etl/etl_defaults'
-# require 'etl/job_schedule'
 # require 'etl/batch'
 # require 'etl/download_batch'
 # require 'etl/download_manager'
