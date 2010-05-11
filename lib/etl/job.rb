@@ -31,7 +31,6 @@ attr_reader :config
 attr_reader :defaults_domain
 attr_accessor :job_status
 attr_accessor :defaults
-attr_accessor :last_run_date
 
 def initialize(manager, bundle)
 	@manager = manager
@@ -45,8 +44,8 @@ def prepare
 end
 
 def defaults_domain=(domain)
-    @defaults_domain = domain
-    @config = @manager.domains_config[@defaults_domain.to_s]
+	@defaults_domain = domain
+	@defaults = @manager.defaults_for_domain(domain)
 end
 
 def status=(status)
@@ -94,9 +93,14 @@ def launch_with_argument(argument, options = {})
 	start_time = Time.now
 	@job_status.job_name = @name
 	@job_status.start_time = start_time
-	@job_status.status = "init"	
+	@job_status.status = "init"
 	@job_status.save
 	
+	domain = @defaults_domain
+	if !@defaults_domain
+		self.defaults_domain = name
+	end
+
 	prepare
 
 	# FIXME: prefix log as job log

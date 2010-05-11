@@ -148,7 +148,6 @@ def run_named_job
 
 	if @args.count > 1
 		argument = @args[1]
-		puts "ARGS: #{@args.join(',')}"
 	else
 		argument = nil
 	end

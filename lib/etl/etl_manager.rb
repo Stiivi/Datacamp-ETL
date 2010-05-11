@@ -66,52 +66,6 @@ def create_etl_manager_structures(options = {})
 	else
 		DataMapper.auto_upgrade!
 	end
-	
-	foo = ETLDefaultAssociation.all.count
-end
-
-def self.create_etl_manager_structures(connection, options = {})
-	if options[:force] == true
-		@@system_table_names.each { | table |
-			if connection.table_exists?(table)
-				connection.drop_table(table)
-			end
-		}
-	else
-		@@system_table_names.each { | table |
-			if connection.table_exists?(table)
-				raise RuntimeError, "Unable to create ETL structures. Table #{table} already exists."
-			end
-		}
-	end
-
-    connection.create_table(@@schedules_table_name) do
-		primary_key :id
-		String	    :name
-		String	    :argument
-		Integer     :is_enabled
-		Integer	    :run_order
-		String	    :schedule
-		Integer		:force_run
-	end
-
-	connection.create_table(@@defaults_table_name) do
-		primary_key :id
-		String 		:domain
-		String 		:default_key
-		String 		:value
-	end
-
-	connection.create_table(@@job_status_table_name) do
-		primary_key :id
-		String		:job_name
-		Integer		:schedule_id
-		String		:status
-		String		:phase
-		String		:message
-		DateTime	:start_time
-		DateTime	:end_time
-	end
 end
 
 def log_file=(logfile)
@@ -234,5 +188,14 @@ def etl_files_path=(path)
     @etl_files_path = Pathname.new(path)
 end
 
+def files_directory_for_job(job)
+	domain = job.defaults_domain
+	if !domain
+		domain = job.name
+	end
+	
+	return @etl_files_path + domain
+	
+end
 
 end

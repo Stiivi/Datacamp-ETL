@@ -21,6 +21,7 @@
 require 'etl/etl_default_association'
 
 class ETLDefaults
+attr_reader :domain
 
 def initialize(manager, domain)
 	@manager = manager
@@ -28,7 +29,7 @@ def initialize(manager, domain)
 end
 
 def default_association(key)
-	return ETLDefaultAssociation.first( {:domain => @domain, :default_key => key} )
+	return ETLDefaultAssociation.first( :conditions => {:domain => @domain, :default_key => key} )
 end
 
 def [](key)
@@ -69,7 +70,7 @@ def []=(key, value)
 	default = default_association(key)
 
 	if default
-		default.value = value.to_s
+		default.default_value = value.to_s
 		default.save
 	else
 		default = ETLDefaultAssociation.new

@@ -5,7 +5,7 @@ class ETLJobStatus
 	property :job_name,    String
 	property :status,      String
 	property :phase,       String
-	property :message,     String
+	property :message,     Text
 	property :start_time,   DateTime
 	property :end_time,     DateTime
 end
