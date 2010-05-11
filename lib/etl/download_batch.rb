@@ -19,7 +19,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 class DownloadBatch
-attr_accessor :urls, :download_directory, :id, :files
+attr_accessor :urls
+attr_accessor :download_directory
+attr_accessor :id
+attr_accessor :files
+attr_accessor :user_info
     
 def initialize(urls)
     @urls = urls

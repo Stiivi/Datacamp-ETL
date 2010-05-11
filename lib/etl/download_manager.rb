@@ -20,6 +20,7 @@
 
 require 'monitor'
 require 'pathname'
+require 'curb'
 require 'etl/download_batch'
 
 module DownloadManagerDelegate
@@ -50,16 +51,18 @@ def download_thread_failed(download_manager, thread_id, exception)
     puts "ERROR: Download thread #{thread_id} failed: #{exception.message}"
     puts exception.backtrace.join("\n")
 end
+def download_did_finish(download_manager)
+	# do nothing
+end
+
 end
 
 class DownloadManager
 
 attr_accessor :download_directory
 attr_reader   :delegate
-attr_accessor :thread_count
 
 def initialize
-    @thread_count = 1
     @download_directory = Pathname.new(".")
 end
 
@@ -67,7 +70,7 @@ def delegate=(object)
     @delegate = object
 end
 
-def download
+def download(options = {})
     # Prepare batch processing
     @processing_queue = Array.new
     @batch_id = 0
@@ -80,7 +83,13 @@ def download
     # puts ">>> ROLLING THREADS"
 
     # Run the threads
-    run_download_threads
+    if options[:threads]
+    	thread_count = options[:threads]
+   	else
+   		thread_count = 1
+   	end
+   	
+    spawn_download_threads(thread_count)
     
     process_thread = Thread.new do
         process_downloads
@@ -89,12 +98,14 @@ def download
     # Wait for downloads to finish
     @download_threads.each { |thread| thread.join }
     @download_finished = true
-
+	@delegate.download_did_finish(self)
+	
     # puts "X== DOWNLOADS FINISHED (and not signaling anymore)"
 
     @mutex.synchronize do
         # puts "<-x LAST SIGNAL E:#{@processing_queue.empty?} F:#{@download_finished}"
-        @lock.signal
+        @lock.broadcast
+        # puts "<-x LAST SIGNAL CAST"
     end
     # puts "-v- LAST JOIN"
 
@@ -110,8 +121,8 @@ def process_downloads
         batch = nil
         @mutex.synchronize do
             break if @download_finished and @processing_queue.empty?
-            # puts "==> WAITING FOR SIGNAL"
-            @lock.wait_while { @processing_queue.empty?} # or not @download_finished }
+            # puts "==> WAITING FOR SIGNAL E:#{@processing_queue.empty?} F:#{@download_finished}"
+            @lock.wait_while { @processing_queue.empty? && (! @download_finished)} # or not @download_finished }
             # puts "<== GOT SIGNAL E:#{@processing_queue.empty?} F:#{@download_finished}"
             if not @processing_queue.empty?
                 batch = @processing_queue.shift
@@ -128,10 +139,10 @@ def stop_download
     end
 end
 
-def run_download_threads
+def spawn_download_threads(thread_count)
     @download_threads = Array.new
 
-    for thread_id in 1..@thread_count
+    for thread_id in 1..thread_count
         @download_threads << Thread.new(thread_id) do 
             |tid|
             
@@ -146,8 +157,10 @@ def run_download_threads
                     # puts "--- (#{tid}) GOT BATCH? #{not batch.nil?}"
                     break if not batch
     
-                    if not download_batch(batch)
-                        @delegate.download_batch_failed(self, batch)
+    				begin
+                    	download_batch(batch)
+                    rescue => exception
+                        @delegate.download_batch_failed(self, batch, exception)
                     end
 
                     # signalize that we are finished, so processing thread can
@@ -162,6 +175,7 @@ def run_download_threads
                 end
                 @delegate.download_thread_did_finish(self, tid)
             rescue => exception
+	                	puts "FAAAAIL"
                 @delegate.download_thread_failed(self, tid, exception)
             end
             @mutex.synchronize do
@@ -187,7 +201,28 @@ end
     
 def download_batch(batch)
     # FIXME: create more download methods: ruby, curl, ...
-    return download_batch_wget(batch)
+    return download_batch_curb(batch)
+end
+
+def download_batch_curb(batch)
+	files = Array.new
+
+	batch.urls.each { |url|
+		# This is default curl method of creating a filename, kept here for possible
+		# future change.
+		filename = url.split(/\?/).first.split(/\//).last
+		# puts "==> DOWNLOAD: #{url}"
+		# puts "--> TO FILE : #{filename}"
+
+		path = @download_directory + filename
+		culr = Curl::Easy.download(url, path)
+
+		if path.exist? and path.file?
+			files << path
+		end
+
+	}
+	batch.files = files
 end
 
 # wget method of downloading
