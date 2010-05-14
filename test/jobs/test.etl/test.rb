@@ -1,9 +1,9 @@
 class TestJob < Job
 def prepare
-	connection_manager = ConnectionManager.default_manager
-	@connection = connection_manager.named_connection("default")
+	repo_manager = RepositoryManager.default_manager
+	@connection = repo_manager.named_connection("default")
 	if !@connection
-		@connection = connection_manager.create_connection("default", "default")	
+		@connection = repo_manager.create_connection("default", "default")	
 	end
 end
 

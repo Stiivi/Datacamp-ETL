@@ -8,8 +8,8 @@ def setup
 	@manager.debug = true
 
 	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
-	@connection_manager = ConnectionManager.default_manager
-	@connection_manager.connection_search_path = ["connections"]
+	@repo_manager = RepositoryManager.default_manager
+	@repo_manager.search_path = ["connections"]
 		
 	schedule = ETLJobSchedule.new({ :is_enabled => 1, :job_name => 'test', :argument => 'pass', :schedule => 'daily' })
 	schedule.save
@@ -19,7 +19,7 @@ def setup
 	schedule.save
 	
 	@connection = Sequel.sqlite
-	@connection_manager.add_named_connection(@connection, "default")
+	@repo_manager.add_named_connection(@connection, "default")
 
 	@connection.create_table :test_table do
 		string :message

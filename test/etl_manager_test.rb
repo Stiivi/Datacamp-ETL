@@ -10,18 +10,18 @@ def setup
 	@manager.debug = true
 	
 	JobBundle.job_search_path = ["jobs", "another_jobs_dir"]
-	ConnectionManager.default_manager.connection_search_path = ["connections"]
+	RepositoryManager.default_manager.search_path = ["repositories"]
 end
 
 def test_connections
-	connection_manager = ConnectionManager.default_manager
+	repo_manager = RepositoryManager.default_manager
 	
-	info = connection_manager.named_connection_info("shop")
+	info = repo_manager.repository("shop")
 	assert_not_nil(info)
 	
 	connection = Sequel.connect('sqlite:/')
-	connection_manager.add_named_connection(connection, "default")
-	connection2 = connection_manager.named_connection("default")
+	repo_manager.add_named_connection(connection, "default")
+	connection2 = repo_manager.named_connection("default")
 	assert_equal(connection, connection2)
 	
 end
