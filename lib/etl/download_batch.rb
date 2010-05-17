@@ -22,7 +22,7 @@ class DownloadBatch
 attr_accessor :urls
 attr_accessor :download_directory
 attr_accessor :id
-attr_accessor :files
+attr_accessor :downloads
 attr_accessor :user_info
     
 def initialize(urls)

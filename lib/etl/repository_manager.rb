@@ -17,7 +17,7 @@ def initialize
 end
 
 def add_repositories_from_file(path)
-	hash = YAML.load_file(file)
+	hash = YAML.load_file(path)
 	add_repositories_from_hash(hash)
 end
 
@@ -31,19 +31,24 @@ end
 
 def repository(name)
 	repo = @repositories[name]
+	if not repo
+		repo = @repositories[name.to_s]
+	end
+
 	if repo
 		return repo
 	end
 
 	file_repos = Hash.new
-	
 	if search_path
 		@search_path.each { |search_path|
 			path = Pathname.new(search_path)
-			path.children.each { |file|
-				hash = YAML.load_file(file)
-				file_repos.merge!(hash)
-			}
+			if path.exist?
+				path.children.each { |file|
+					hash = YAML.load_file(file)
+					file_repos.merge!(hash)
+				}
+			end
 		}
 	end
 	

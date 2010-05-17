@@ -92,8 +92,8 @@ def initialize(path)
 	else
 		@info = {}
 	end
-	
-	@type = @info[:job_type]
+
+	@type = @info["job_type"]
 	if not @type
 		if basename =~ /\.rb$/
 			@type = "ruby"

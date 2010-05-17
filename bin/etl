@@ -90,11 +90,11 @@ def load_configuration
 	end
 
 	# Connection Search Path
-    path = @configuration["connection_search_path"]
+    path = @configuration["repository_search_path"]
 	if path.is_kind_of_class(String)
-		ConnectionManager.default_manager.connection_search_path = [path]
+		RepositoryManager.default_manager.search_path = [path]
 	elsif path.is_kind_of_class(Array)
-		ConnectionManager.default_manager.connection_search_path = path
+		RepositoryManager.default_manager.search_path = path
 	elsif path
 		puts 'Unknown connection search path type (should be string or array)'
 	end
