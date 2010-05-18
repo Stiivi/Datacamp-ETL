@@ -67,6 +67,7 @@ class DownloadManager
 
 attr_accessor :download_directory
 attr_reader   :delegate
+attr_accessor :download_meethod
 
 def initialize
     @download_directory = Pathname.new(".")
@@ -212,10 +213,18 @@ def create_next_batch
 end
     
 def download_batch(batch, tid = nil)
-    # FIXME: create more download methods: ruby, curl, ...
-    # download_batch_multi(batch)
-    download_batch_curb(batch, tid)
-    # download_batch_curlcmd(batch, tid)
+
+	case @download_method
+	when "curlmulti" then
+    	download_batch_multi(batch, tid)
+	when "curleasy" then
+	    download_batch_curb(batch, tid)
+	when "curl", nil then
+    	download_batch_curlcmd(batch, tid)
+    else
+		# unknown download method
+		raise RuntimeError, "unknown download method #{@download_method}"
+    end
 end
 
 def download_batch_curlcmd(batch, tid = nil)
