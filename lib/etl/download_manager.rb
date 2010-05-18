@@ -171,7 +171,7 @@ def spawn_download_threads(thread_count)
                     break if not batch
     
     				begin
-                    	download_batch(batch)
+                    	download_batch(batch, tid)
                     rescue => exception
                         @delegate.download_batch_failed(self, batch, exception)
                     end
@@ -211,49 +211,62 @@ def create_next_batch
     return batch
 end
     
-def download_batch(batch)
+def download_batch(batch, tid = nil)
     # FIXME: create more download methods: ruby, curl, ...
-    return download_batch_multi(batch)
+    # download_batch_multi(batch)
+    download_batch_curb(batch, tid)
 end
 
-def download_batch_curb(batch)
+def download_batch_curb(batch, tid = nil)
 	downloads = Array.new
-	curls = Array.new
+
+	curl = Curl::Easy.new
+	curl.timeout = 2
 	
-	batch.urls.each { |url|
+	batch.urls.each { |url_info|
 		# This is default curl method of creating a filename, kept here for possible
 		# future change.
-		if url.class == String
-			url_str = url
-			filename = url.split(/\?/).first.split(/\//).last
-		elsif url.class == Hash
-			url_str = url[:url]
-			filename = url[:filename]
+		if url_info.class == String
+			url = url_info
+			filename = nil
+		elsif url_info.class == Hash
+			url = url_info[:url]
+			filename = url_info[:filename]
 		else
 			# FIXME: raise exception
+		end
+
+		if !filename || filename == ""
+			filename = url.split(/\?/).first.split(/\//).last
 		end
 			
 		path = @download_directory + filename
 
-		curl = Curl::Easy.new(url_str)
+		curl.url = url
 
-		File.open(path, "wb") do |output|
-		  old_on_body = curl.on_body do |data| 
-			result = old_on_body ?  old_on_body.call(data) : data.length
-			output << data if result == data.length
-			result
-		  end
-		  
-		  curl.perform
-		end        
+		curl.on_success { |c|
+			file = File.new(path, "wb")
+			file << c.body_str
+			file.close
+		}
+		time = Time.now
+		begin
+			curl.perform
+		rescue
+			# fail
+		end
 
+		# puts "WAITED: #{Time.now - time}s (#{tid})"
 		hash = Hash.new
+		hash[:url] = url_info[:url]
+		hash[:user_info] = url_info[:user_info]
 		hash[:file] = path
-		hash[:url] = url_str
 		hash[:status_code] = curl.response_code
-
 		downloads << hash
 	}
+	
+	# puts "USED CONNECTIONS (#{tid}): #{curl.num_connects}"
+	# exit
 	batch.downloads = downloads
 end
 
@@ -261,11 +274,17 @@ def download_batch_multi(batch)
 	curls = Array.new
 	
 	multi = Curl::Multi.new
+
+	# FIXME: make this configurable
+	# multi.max_connects = 50
+	multi.pipeline = true
 	
 	url_info_dict = Hash.new
 	url_paths = Hash.new
 	downloads = Array.new
-	# puts "DOWNLOAD BATCH #{batch.user_info}	"
+	puts "DOWNLOAD BATCH #{batch.user_info}	"
+	pre_transfer_time = 0
+	
 	batch.urls.each { |url_info|
 
 		if url_info.class == String
@@ -278,7 +297,7 @@ def download_batch_multi(batch)
 			# FIXME: raise exception
 		end
 
-		if !filename or filename == ""
+		if !filename || filename == ""
 			filename = url.split(/\?/).first.split(/\//).last
 		end
 		
@@ -300,22 +319,30 @@ def download_batch_multi(batch)
 			hash = Hash.new
 			hash[:url] = info[:url]
 			file = url_paths[info[:url]]
-			# puts "COMPLETE #{file} #{file.exist?}"
-
-			hash[:file] = url_paths[info[:url]]
-			hash[:status_code] = curl.response_code
-
+			
+			hash[:file] = file
+			hash[:status_code] = c.response_code
+			
 			hash[:user_info] = info[:user_info]
 			downloads << hash
+			
+			pre_transfer_time = [pre_transfer_time, c.pre_transfer_time].max
 		}
-		# FIXME: make this configurable
-		curl.connect_timeout = 30
+		
+		curl.timeout = 10
+		
+		# curl.on_debug { |type, data|
+		#	if not [1, 2, 3].include?(type) 
+		#		puts "DEBUG: #{type} #{data}"
+		#	end
+		#}
 		multi.add(curl)
 	}
 
+	# puts "DOWNLOAD START"
 	multi.perform
-	# puts "DOWNLOAD END"
-
+	# puts "DOWNLOAD END #{downloads.count}"
+	# puts "DOWNLOAD PRETRANSFER TIME #{pre_transfer_time}s"
 	batch.downloads = downloads
 end
 
