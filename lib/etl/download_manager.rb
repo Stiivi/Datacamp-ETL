@@ -215,8 +215,50 @@ def download_batch(batch, tid = nil)
     # FIXME: create more download methods: ruby, curl, ...
     # download_batch_multi(batch)
     download_batch_curb(batch, tid)
+    # download_batch_curlcmd(batch, tid)
 end
 
+def download_batch_curlcmd(batch, tid = nil)
+	downloads = Array.new
+
+	curl = Curl::Easy.new
+	curl.timeout = 2
+	
+	batch.urls.each { |url_info|
+		# This is default curl method of creating a filename, kept here for possible
+		# future change.
+		if url_info.class == String
+			url = url_info
+			filename = nil
+		elsif url_info.class == Hash
+			url = url_info[:url]
+			filename = url_info[:filename]
+		else
+			# FIXME: raise exception
+		end
+
+		if !filename || filename == ""
+			filename = url.split(/\?/).first.split(/\//).last
+		end
+			
+		path = @download_directory + filename
+
+	    result = system("curl", "-s", "-o", path, url)
+		if not result
+			puts "WARNING: curl result is #{$?}"
+		end
+# exit
+		# puts "WAITED: #{Time.now - time}s (#{tid})"
+		hash = Hash.new
+		hash[:url] = url_info[:url]
+		hash[:user_info] = url_info[:user_info]
+		hash[:file] = path
+		# hash[:status_code] = curl.response_code
+		downloads << hash
+	}
+	
+	batch.downloads = downloads
+end
 def download_batch_curb(batch, tid = nil)
 	downloads = Array.new
 
@@ -246,7 +288,7 @@ def download_batch_curb(batch, tid = nil)
 
 		curl.on_success { |c|
 			file = File.new(path, "wb")
-			file << c.body_str
+			# file << c.body_str
 			file.close
 		}
 		time = Time.now
