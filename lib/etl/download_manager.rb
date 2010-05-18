@@ -22,6 +22,7 @@ require 'monitor'
 require 'pathname'
 require 'curb'
 require 'etl/download_batch'
+require 'typhoeus'
 
 module DownloadManagerDelegate
 def download_thread_did_start(download_manager, thread_id)
@@ -219,8 +220,10 @@ def download_batch(batch, tid = nil)
     	download_batch_multi(batch, tid)
 	when "curleasy" then
 	    download_batch_curb(batch, tid)
-	when "curl", nil then
+	when "curl" then
     	download_batch_curlcmd(batch, tid)
+    when "hydra", nil then
+    	download_batch_hydra(batch, tid)
     else
 		# unknown download method
 		raise RuntimeError, "unknown download method #{@download_method}"
@@ -230,9 +233,6 @@ end
 def download_batch_curlcmd(batch, tid = nil)
 	downloads = Array.new
 
-	curl = Curl::Easy.new
-	curl.timeout = 2
-	
 	batch.urls.each { |url_info|
 		# This is default curl method of creating a filename, kept here for possible
 		# future change.
@@ -268,6 +268,58 @@ def download_batch_curlcmd(batch, tid = nil)
 	
 	batch.downloads = downloads
 end
+
+def process_download(url_info, path, response)
+	file = File.new(path, "wb")
+	file.puts response.body
+	file.close
+
+	hash = {
+		:url => url_info[:url],
+		:file => path,
+		:status_code => response.code,
+		:user_info => url_info[:user_info]
+	}
+	
+	return hash
+end
+
+def download_batch_hydra(batch, tid = nil)
+	downloads = Array.new
+
+	hydra = Typhoeus::Hydra.new(:max_concurrency => 20)
+
+	batch.urls.each { |url_info|
+		if url_info.class == String
+			url = url_info
+			filename = nil
+		elsif url_info.class == Hash
+			url = url_info[:url]
+			filename = url_info[:filename]
+		else
+			# FIXME: raise exception
+		end
+
+		if !filename || filename == ""
+			filename = url.split(/\?/).first.split(/\//).last
+		end
+			
+		path = @download_directory + filename
+
+		reqest = Typhoeus::Request.new(url)
+
+		reqest.on_complete do | response |
+			hash = process_download(url_info, path, response)
+			downloads << hash
+		end
+		
+		hydra.queue(reqest)
+	}
+
+	hydra.run	
+	batch.downloads = downloads
+end
+
 def download_batch_curb(batch, tid = nil)
 	downloads = Array.new
 
