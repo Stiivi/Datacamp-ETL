@@ -1,6 +1,11 @@
 Datacamp ETL
 
-INFORMATION
+WARNING: This project is DISCONTINUED, functionality is part of Brewery framework:
+
+    http://github.com/Stiivi/brewery
+
+
+OBSOLETE INFORMATION:
 
 Datacamp ETL is a library and set of tools for extraction, transformation and loading of data.
 See project site for more information:
